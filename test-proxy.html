@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxy Server Test</title>
+</head>
+<body>
+    <h1>Proxy Server Connectivity Test</h1>
+    <button onclick="testProxy()">Test Proxy Server</button>
+    <div id="result"></div>
+
+    <script>
+        async function testProxy() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                console.log('🧪 Testing proxy server connection...');
+                const response = await fetch('http://localhost:3001/api/test');
+                console.log('📥 Response status:', response.status);
+                console.log('📥 Response ok:', response.ok);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ Proxy test response:', data);
+                
+                resultDiv.innerHTML = `
+                    <h3 style="color: green;">✅ SUCCESS!</h3>
+                    <p>Proxy server is working correctly.</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                console.error('❌ Proxy test failed:', error);
+                resultDiv.innerHTML = `
+                    <h3 style="color: red;">❌ FAILED!</h3>
+                    <p>Error: ${error.message}</p>
+                    <p>This could be due to:</p>
+                    <ul>
+                        <li>Proxy server not running</li>
+                        <li>CORS issues</li>
+                        <li>Network connectivity problems</li>
+                    </ul>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

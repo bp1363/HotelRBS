@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HotelRBS - Mobile Search Bar Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            padding: 20px;
+        }
+
+        .demo-container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .demo-header {
+            background: linear-gradient(135deg, #165d31, #1a6b38);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .demo-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .demo-header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .search-trigger {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 16px;
+        }
+
+        .search-trigger:hover {
+            border-color: #165d31;
+            box-shadow: 0 2px 8px rgba(22, 93, 49, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .search-icon {
+            width: 20px;
+            height: 20px;
+            color: #165d31;
+        }
+
+        .search-content {
+            padding: 20px;
+            border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+
+        .search-field {
+            margin-bottom: 20px;
+        }
+
+        .search-field label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .search-field select,
+        .search-field input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+            transition: border-color 0.2s ease;
+        }
+
+        .search-field select:focus,
+        .search-field input:focus {
+            outline: none;
+            border-color: #165d31;
+            box-shadow: 0 0 0 3px rgba(22, 93, 49, 0.1);
+        }
+
+        .search-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #165d31, #1a6b38);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 10px;
+        }
+
+        .search-button:hover {
+            background: linear-gradient(135deg, #134a28, #165d31);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(22, 93, 49, 0.3);
+        }
+
+        .feature-list {
+            padding: 20px;
+            background: white;
+        }
+
+        .feature-list h3 {
+            color: #165d31;
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #4b5563;
+        }
+
+        .feature-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 12px;
+            color: #10b981;
+        }
+
+        .demo-info {
+            padding: 20px;
+            background: #f0f9ff;
+            border-top: 1px solid #e0f2fe;
+        }
+
+        .demo-info h3 {
+            color: #0369a1;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+
+        .demo-info p {
+            font-size: 14px;
+            color: #0369a1;
+            line-height: 1.5;
+        }
+
+        .breakpoint-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        @media (max-width: 480px) {
+            .demo-container {
+                margin: 10px;
+                border-radius: 12px;
+            }
+
+            .search-trigger {
+                margin: 16px;
+                padding: 14px;
+                font-size: 15px;
+            }
+
+            .search-content {
+                padding: 16px;
+            }
+
+            .feature-list,
+            .demo-info {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="breakpoint-info" id="viewport-info">
+        Loading...
+    </div>
+
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>🏨 HotelRBS</h1>
+            <p>Mobile Search Experience</p>
+        </div>
+
+        <div class="search-trigger" onclick="toggleSearch()">
+            <div style="flex: 1; text-align: left;">
+                <div style="font-weight: 500; color: #111827;">
+                    Where are you going?
+                </div>
+                <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">
+                    Enter details
+                </div>
+            </div>
+            <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+        </div>
+
+        <div id="search-content" class="search-content" style="display: none;">
+            <div class="search-field">
+                <label>📍 Search destinations</label>
+                <select>
+                    <option>Riyadh, Saudi Arabia</option>
+                    <option>Jeddah, Saudi Arabia</option>
+                    <option>Dubai, UAE</option>
+                    <option>Abu Dhabi, UAE</option>
+                    <option>Kuwait City, Kuwait</option>
+                    <option>Doha, Qatar</option>
+                </select>
+            </div>
+
+            <div class="search-field">
+                <label>📅 Check in</label>
+                <input type="date" value="2025-10-29">
+            </div>
+
+            <div class="search-field">
+                <label>📅 Check out</label>
+                <input type="date" value="2025-11-01">
+            </div>
+
+            <div class="search-field">
+                <label>👥 Guests</label>
+                <select>
+                    <option>1 Guest, 1 Room</option>
+                    <option selected>2 Guests, 1 Room</option>
+                    <option>3 Guests, 1 Room</option>
+                    <option>4 Guests, 1 Room</option>
+                    <option>4 Guests, 2 Rooms</option>
+                    <option>6 Guests, 3 Rooms</option>
+                </select>
+            </div>
+
+            <button class="search-button" onclick="performSearch()">
+                🔍 Search Hotels
+            </button>
+        </div>
+
+        <div class="feature-list">
+            <h3>✨ Mobile Features</h3>
+            <div class="feature-item">
+                <svg class="feature-icon" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                </svg>
+                Touch-friendly dropdowns
+            </div>
+            <div class="feature-item">
+                <svg class="feature-icon" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                </svg>
+                Smooth animations
+            </div>
+            <div class="feature-item">
+                <svg class="feature-icon" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                </svg>
+                Perfect UI/UX
+            </div>
+            <div class="feature-item">
+                <svg class="feature-icon" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                </svg>
+                Responsive design
+            </div>
+        </div>
+
+        <div class="demo-info">
+            <h3>📱 Mobile Responsive</h3>
+            <p>
+                This search bar is optimized for mobile devices with touch-friendly interactions, 
+                smooth animations, and perfect UI that adapts to all screen sizes from 320px to 1440px.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function updateViewportInfo() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const info = document.getElementById('viewport-info');
+            
+            let device = '';
+            if (width <= 480) device = 'Mobile (Small)';
+            else if (width <= 768) device = 'Mobile (Large)';
+            else if (width <= 1024) device = 'Tablet';
+            else device = 'Desktop';
+            
+            info.textContent = `${width}x${height} - ${device}`;
+        }
+        
+        function toggleSearch() {
+            const content = document.getElementById('search-content');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                content.style.animation = 'slideDown 0.3s ease-out';
+            } else {
+                content.style.display = 'none';
+            }
+        }
+        
+        function performSearch() {
+            alert('🔍 Search functionality would navigate to results page with selected parameters!');
+        }
+        
+        updateViewportInfo();
+        window.addEventListener('resize', updateViewportInfo);
+
+        // Add CSS animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideDown {
+                from {
+                    opacity: 0;
+                    transform: translateY(-10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

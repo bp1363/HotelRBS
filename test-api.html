@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>Hotel API Test</h1>
+    <button onclick="testAPI()">Test API</button>
+    <div id="results"></div>
+
+    <script>
+        async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = 'Testing API...';
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/hotel-search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        "CheckIn": "2025-12-01",
+                        "CheckOut": "2025-12-02", 
+                        "HotelCodes": "263678,91920,414792",
+                        "CityCode": "",
+                        "GuestNationality": "AE",
+                        "PreferredCurrencyCode": "AED",
+                        "PaxRooms": [{"Adults": 2, "Children": 0, "ChildrenAges": []}],
+                        "IsDetailResponse": true,
+                        "ResponseTime": 30,
+                        "Filters": {"MealType": "All", "Refundable": "true", "NoOfRooms": 1}
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                if (data.Status.Code === '200' || data.Status.Code === 200) {
+                    const hotels = Array.isArray(data.HotelResult) 
+                        ? data.HotelResult 
+                        : data.HotelResult ? [data.HotelResult] : [];
+                    
+                    resultsDiv.innerHTML = `
+                        <h2>Found ${hotels.length} hotels:</h2>
+                        ${hotels.map(hotel => `
+                            <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+                                <h3>${hotel.HotelName}</h3>
+                                <p>Address: ${hotel.Address}</p>
+                                <p>Rating: ${hotel.StarRating} stars</p>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<p>Error: ${data.Status.Description}</p>`;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
+

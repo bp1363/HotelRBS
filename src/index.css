@@ -1,0 +1,914 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Hide Lovable platform components */
+[data-lovable-tagger],
+[data-lovable-tagger] *,
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]),
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]) * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide the "Edit with Lovable" button specifically */
+div[style*="position: fixed"][style*="bottom: 20px"][style*="right: 20px"],
+div[style*="position: fixed"][style*="bottom: 20px"][style*="right: 20px"] *,
+div[style*="position: fixed"][style*="bottom: 1.25rem"][style*="right: 1.25rem"],
+div[style*="position: fixed"][style*="bottom: 1.25rem"][style*="right: 1.25rem"] * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Additional CSS to hide any Lovable platform elements */
+[data-lovable-tagger],
+[data-lovable-tagger] *,
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]),
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]) *,
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]) * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide any element with "Edit with Lovable" text */
+div:has-text("Edit with Lovable"),
+div:has-text("Edit with Lovable") * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* More aggressive hiding for Lovable components */
+[data-lovable-tagger],
+[data-lovable-tagger] *,
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]),
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]) *,
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]) * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide any floating element with heart icon and woman avatar */
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has(button),
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has(button) * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide elements containing "Edit with Lovable" text */
+*:has-text("Edit with Lovable"),
+*:has-text("Edit with Lovable") * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* More aggressive hiding for Lovable components */
+[data-lovable-tagger],
+[data-lovable-tagger] *,
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]),
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]) *,
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]) * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide any floating element with heart icon and woman avatar */
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has(button),
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has(button) * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide any element containing "Made with Lovable" text */
+*:has-text("Made with Lovable"),
+*:has-text("Made with Lovable") *,
+*:has-text("Edit with Lovable"),
+*:has-text("Edit with Lovable") * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Shift Lovable component to the right to be completely hidden */
+[data-lovable-tagger],
+[data-lovable-tagger] *,
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]),
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]) * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateX(100px) !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+}
+
+/* Minimize Lovable component size to absolute minimum */
+[data-lovable-tagger],
+[data-lovable-tagger] *,
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]),
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]) *,
+*:has-text("Made with Lovable"),
+*:has-text("Made with Lovable") *,
+*:has-text("Edit with Lovable"),
+*:has-text("Edit with Lovable") * {
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 1px !important;
+  min-height: 1px !important;
+  max-width: 1px !important;
+  max-height: 1px !important;
+  font-size: 1px !important;
+  line-height: 1px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: transparent !important;
+  text-shadow: none !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  z-index: -9999 !important;
+}
+
+/* Hide n8n's default button - we're using AnimatedAvatar instead for custom styling */
+button[id*="n8n"],
+button[class*="n8n"],
+div[id*="n8n-button"],
+div[class*="n8n-button"],
+div[style*="position: fixed"][style*="bottom: 20px"][style*="left: 20px"]:has(button),
+div[style*="position: fixed"][style*="bottom: 20px"][style*="left: 20px"]:has([role="button"]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Force n8n chat window to appear on the LEFT when open - override all possible selectors */
+#n8n-chat,
+.n8n-chat,
+div[id*="n8n-chat"],
+div[class*="n8n-chat"],
+div[style*="position: fixed"]:has(iframe[src*="n8n"]),
+div[style*="position: fixed"][style*="width: 400px"],
+div[style*="position: fixed"][style*="width: 350px"],
+div[style*="position: fixed"][style*="width: 320px"],
+iframe[src*="n8n"] {
+  left: 20px !important;
+  right: auto !important;
+  bottom: 100px !important;
+  top: auto !important;
+}
+
+/* Target any fixed positioned div that contains n8n chat content */
+/* Ensure AnimatedAvatar (n8n trigger) is on the left - force positioning */
+.animated-avatar {
+  left: 2rem !important;
+  right: auto !important;
+  bottom: 2rem !important;
+  top: auto !important;
+}
+
+/* Move chatbot upward on mobile to avoid hiding Deals section */
+@media (max-width: 768px) {
+  .animated-avatar {
+    bottom: 5rem !important; /* Moved up from 2rem (32px) to 5rem (80px) */
+  }
+}
+
+/* Override any inline styles that might position it on the right */
+.animated-avatar[style*="right"] {
+  right: auto !important;
+  left: 2rem !important;
+}
+
+
+/* Move View all buttons to bottom right of n8n chatbot */
+.flex.items-center.justify-between .hidden.sm\\:flex {
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 80px !important;
+  z-index: 1000 !important;
+  margin-right: 0 !important;
+}
+
+/* Alternative: Move View all buttons to left side */
+@media (min-width: 640px) {
+  .flex.items-center.justify-between {
+    flex-direction: row-reverse !important;
+  }
+  
+  .flex.items-center.justify-between .hidden.sm\\:flex {
+    margin-right: 0 !important;
+    margin-left: auto !important;
+  }
+}
+
+/* More aggressive hiding for Lovable component */
+[data-lovable-tagger],
+[data-lovable-tagger] *,
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]),
+div[style*="position: fixed"][style*="bottom"][style*="right"]:has([data-lovable-tagger]) *,
+*:has-text("Made with Lovable"),
+*:has-text("Made with Lovable") *,
+*:has-text("Edit with Lovable"),
+*:has-text("Edit with Lovable") * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 0 !important;
+  max-height: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: transparent !important;
+  text-shadow: none !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  z-index: -9999 !important;
+  transform: scale(0) !important;
+}
+
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+
+    --primary: 152 100% 21%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 100%;
+    --secondary-foreground: 0 0% 9%;
+
+    --muted: 0 0% 98%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 0 0% 100%;
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 152 100% 21%;
+
+    /* Enhanced shadows and effects - 3D Grey Shadows */
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+      0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+    --shadow-3d: 0 8px 16px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.08);
+    --shadow-3d-hover: 0 12px 24px rgba(0, 0, 0, 0.2),
+      0 6px 12px rgba(0, 0, 0, 0.15), 0 3px 6px rgba(0, 0, 0, 0.1);
+    --shadow-intense-3d: 0 16px 32px rgba(0, 0, 0, 0.25),
+      0 8px 16px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.15),
+      0 2px 4px rgba(0, 0, 0, 0.1);
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(152, 100%, 21%),
+      hsl(152, 100%, 24%)
+    );
+    --gradient-subtle: linear-gradient(
+      to bottom,
+      transparent,
+      rgba(0, 0, 0, 0.04)
+    );
+    --gradient-soft: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.1),
+      rgba(255, 255, 255, 0.05)
+    );
+
+    /* Animation timings */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Header spacing utilities */
+    --header-height-default: 5rem; /* 80px */
+    --header-height-scrolled: 4rem; /* 64px */
+    --header-height-compact: 3.5rem; /* 56px */
+    --header-padding-default: var(--header-height-default);
+    --header-padding-scrolled: var(--header-height-scrolled);
+    --header-padding-compact: var(--header-height-compact);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground relative;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    background-image: radial-gradient(
+        circle at 25% 25%,
+        hsl(var(--primary) / 0.04) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        circle at 75% 75%,
+        hsl(var(--primary) / 0.03) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        circle at 50% 50%,
+        hsl(var(--primary) / 0.02) 0%,
+        transparent 80%
+      ),
+      radial-gradient(
+        circle at 10% 90%,
+        hsl(var(--primary) / 0.015) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        circle at 90% 10%,
+        hsl(var(--primary) / 0.015) 0%,
+        transparent 50%
+      );
+    background-size: 120vw 120vh, 100vw 100vh, 140vw 140vh, 80vw 80vh, 80vw 80vh;
+    background-position: 0% 0%, 100% 100%, 50% 50%, 10% 90%, 90% 10%;
+    animation: float-bg 25s ease-in-out infinite,
+      pulse-bg 8s ease-in-out infinite;
+    /* Ensure sticky elements work properly */
+    transform: none;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      45deg,
+      transparent 0%,
+      hsl(var(--primary) / 0.005) 25%,
+      transparent 50%,
+      hsl(var(--primary) / 0.005) 75%,
+      transparent 100%
+    );
+    background-size: 400% 400%;
+    animation: gradient-shift 25s ease-in-out infinite;
+    pointer-events: none;
+    z-index: -1;
+  }
+}
+
+/* React Date Range Picker Custom Styles */
+.rdrCalendarWrapper {
+  @apply bg-white rounded-lg;
+}
+
+.rdrDateRangePickerWrapper {
+  @apply flex flex-col lg:flex-row;
+}
+
+.rdrMonthAndYearWrapper {
+  @apply bg-white;
+}
+
+.rdrMonthAndYearPickers {
+  @apply text-gray-900;
+}
+
+.rdrNextPrevButton {
+  @apply bg-white hover:bg-gray-50 border border-gray-200 rounded-lg;
+}
+
+.rdrPrevButton i,
+.rdrNextButton i,
+.rdrPprevButton i,
+.rdrPnextButton i {
+  @apply border-gray-600 w-2 h-2 border-2;
+}
+
+.rdrDayToday .rdrDayNumber span:after {
+  @apply bg-primary;
+}
+
+.rdrDay:not(.rdrDayPassive) .rdrInRange ~ .rdrDayNumber span,
+.rdrDay:not(.rdrDayPassive) .rdrStartEdge ~ .rdrDayNumber span,
+.rdrDay:not(.rdrDayPassive) .rdrEndEdge ~ .rdrDayNumber span,
+.rdrDay:not(.rdrDayPassive) .rdrSelected ~ .rdrDayNumber span {
+  @apply text-white;
+}
+
+.rdrDayStartEdge,
+.rdrDayEndEdge,
+.rdrDayInRange {
+  @apply bg-primary;
+}
+
+.rdrDayStartEdge {
+  @apply rounded-l-full;
+}
+
+.rdrDayEndEdge {
+  @apply rounded-r-full;
+}
+
+.rdrDayInRange {
+  @apply bg-primary bg-opacity-20;
+}
+
+.rdrDefinedRangesWrapper {
+  @apply border-r border-gray-200;
+}
+
+.rdrStaticRange {
+  @apply border-0 hover:bg-gray-50;
+}
+
+.rdrStaticRangeSelected {
+  @apply bg-primary bg-opacity-10;
+}
+
+/* DayPicker (shadcn Calendar) nav buttons visibility */
+.rdp-nav_button {
+  @apply inline-flex items-center justify-center rounded-md h-8 w-8 text-foreground hover:bg-muted border border-border shadow-sm hover:shadow-md transition-all duration-200;
+  opacity: 1 !important;
+}
+
+.rdp-nav_button:hover {
+  @apply bg-primary/10 border-primary/30 text-primary scale-105;
+}
+
+.rdp-nav_button svg {
+  @apply h-4 w-4;
+}
+
+/* Remove all problematic CSS rules that might interfere */
+
+/* Force header visibility and positioning */
+header {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 9999 !important;
+  width: 100% !important;
+}
+
+/* Prevent parent elements from affecting sticky behavior */
+html,
+body {
+  transform: none !important;
+  overflow-x: hidden;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+}
+
+/* Header spacing utility classes */
+.pt-header {
+  padding-top: var(--header-height-default);
+}
+
+.pt-header-scrolled {
+  padding-top: var(--header-height-scrolled);
+}
+
+.pt-header-compact {
+  padding-top: var(--header-height-compact);
+}
+
+/* Home page has extra integrated search inside header */
+.pt-header-home {
+  padding-top: calc(var(--header-height-default) + 37px);
+}
+.pt-header-home-plus-40 {
+  padding-top: calc(var(--header-height-default) + 37px + 40px);
+}
+
+/* Extra spacing variants */
+.pt-header-plus-15 {
+  padding-top: calc(var(--header-height-default) + 15px);
+}
+.pt-header-plus-20 {
+  padding-top: calc(var(--header-height-default) + 20px);
+}
+.pt-header-plus-25 {
+  padding-top: calc(var(--header-height-default) + 25px);
+}
+.pt-header-plus-40 {
+  padding-top: calc(var(--header-height-default) + 40px);
+}
+
+.pt-header-compact-plus-20 {
+  padding-top: calc(var(--header-height-compact) + 20px);
+}
+
+/* Sticky helpers for elements that sit below the header */
+.sticky-below-header {
+  top: var(--header-height-default);
+}
+.sticky-below-header-scrolled {
+  top: var(--header-height-scrolled);
+}
+.sticky-below-header-compact {
+  top: var(--header-height-compact);
+}
+
+/* Responsive header spacing */
+@media (max-width: 768px) {
+  .pt-header {
+    padding-top: var(--header-height-compact);
+  }
+  .pt-header-home {
+    padding-top: var(--header-height-compact);
+  }
+  .pt-header-home-plus-40 {
+    padding-top: calc(var(--header-height-compact) + 40px);
+  }
+  .pt-header-plus-15 {
+    padding-top: calc(var(--header-height-compact) + 15px);
+  }
+  .pt-header-plus-20 {
+    padding-top: calc(var(--header-height-compact) + 20px);
+  }
+  .pt-header-plus-25 {
+    padding-top: calc(var(--header-height-compact) + 25px);
+  }
+  .pt-header-plus-40 {
+    padding-top: calc(var(--header-height-compact) + 40px);
+  }
+  .pt-header-compact-plus-20 {
+    padding-top: calc(var(--header-height-compact) + 20px);
+  }
+}
+
+/* Custom animations for reviews - Enhanced smooth scrolling */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 200s linear infinite;
+  will-change: transform;
+}
+
+/* Ensure smooth scrolling performance */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-scroll {
+    animation-timing-function: linear;
+  }
+}
+
+/* Horizontal cards animations */
+@keyframes slideInRight {
+  0% {
+    transform: translateX(50px) rotateY(15deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes floatHorizontal {
+  0%,
+  100% {
+    transform: translateY(0px) rotateY(1deg);
+  }
+  50% {
+    transform: translateY(-6px) rotateY(1deg);
+  }
+}
+
+.floating-card-horizontal {
+  animation: slideInRight 0.6s ease-out forwards,
+    floatHorizontal 3s ease-in-out infinite;
+  transform-style: preserve-3d;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2), 0 12px 25px rgba(0, 0, 0, 0.12),
+    0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
+.floating-card-horizontal:hover {
+  animation-play-state: paused, paused;
+  transform: translateY(-8px) rotateY(-2deg) scale(1.03);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.25), 0 18px 35px rgba(0, 0, 0, 0.15),
+    0 8px 18px rgba(0, 0, 0, 0.1);
+}
+
+.cards-container-horizontal {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 800px;
+}
+
+/* Ensure perfect horizontal alignment on all screen sizes */
+@media (min-width: 1024px) {
+  .cards-container-horizontal {
+    justify-content: flex-end;
+    padding-right: 2rem;
+  }
+}
+
+/* ============================================
+   CHATBOT & HELP WIDGET STYLING
+   ============================================ */
+
+.chatbot-container {
+  position: fixed;
+  z-index: 40;
+}
+
+.call-banner {
+  position: fixed;
+  bottom: 6rem;
+  right: 2rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 8px 24px rgba(35, 102, 90, 0.2), 
+              0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 2px solid rgba(35, 102, 90, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 280px;
+  backdrop-filter: blur(8px);
+}
+
+.call-banner:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(35, 102, 90, 0.25), 
+              0 6px 16px rgba(0, 0, 0, 0.12);
+  border-color: rgba(35, 102, 90, 0.3);
+}
+
+.call-banner.dragging {
+  cursor: grabbing;
+  box-shadow: 0 16px 48px rgba(35, 102, 90, 0.3), 
+              0 8px 24px rgba(0, 0, 0, 0.15);
+  opacity: 0.95;
+}
+
+.call-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.call-icon {
+  font-size: 1.75rem;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.call-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.call-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  letter-spacing: -0.01em;
+}
+
+.call-button {
+  background: linear-gradient(135deg, #23665a 0%, #1a4d45 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(35, 102, 90, 0.2);
+  letter-spacing: 0.01em;
+}
+
+.call-button:hover {
+  background: linear-gradient(135deg, #1a4d45 0%, #134138 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(35, 102, 90, 0.3);
+}
+
+.call-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(35, 102, 90, 0.25);
+}
+
+.call-button-icon {
+  font-size: 1rem;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .call-banner {
+    bottom: 5rem;
+    right: 1.25rem;
+    max-width: 260px;
+    padding: 0.875rem 1rem;
+  }
+
+  .call-icon {
+    font-size: 1.5rem;
+  }
+
+  .call-title {
+    font-size: 0.8125rem;
+  }
+
+  .call-button {
+    padding: 0.4375rem 0.875rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Force LTR layout for entire application - override RTL direction */
+html,
+body,
+#root,
+#root > * {
+  direction: ltr !important;
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+}
+
+/* Force LTR layout for header - override RTL direction */
+header,
+header > *,
+header > * > * {
+  direction: ltr !important;
+}
+
+/* Ensure flex layouts in header stay LTR */
+header .flex {
+  direction: ltr !important;
+}
+
+/* Override any RTL-specific CSS for header elements */
+[dir="rtl"] header,
+[dir="rtl"] header > *,
+[dir="rtl"] header > * > * {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Force LTR for all pages and sections */
+[dir="rtl"],
+[dir="rtl"] *,
+body[dir="rtl"],
+body[dir="rtl"] *,
+html[dir="rtl"],
+html[dir="rtl"] * {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Ensure all main content areas stay LTR */
+main,
+section,
+article {
+  direction: ltr !important;
+}

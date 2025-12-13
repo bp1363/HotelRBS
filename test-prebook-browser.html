@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prebook API Test</title>
+</head>
+<body>
+    <h1>Prebook API Test</h1>
+    <button onclick="testPrebook()">Test Prebook API</button>
+    <div id="result"></div>
+
+    <script>
+        async function testPrebook() {
+            try {
+                console.log('🧪 Testing prebook API from browser...');
+                
+                const requestBody = {
+                    BookingCode: "414792!H1.1!39c2a427-a33b-4e58-bc7f-47d23867a2a8",
+                    PaymentMode: "Limit"
+                };
+                
+                console.log('📤 Request Body:', JSON.stringify(requestBody, null, 2));
+                
+                const response = await fetch('http://localhost:3001/api/hotel-prebook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody),
+                });
+                
+                console.log('📥 Response Status:', response.status);
+                const data = await response.json();
+                console.log('✅ Response Data:', data);
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>Response:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('❌ Test Error:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>Error:</h3>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
