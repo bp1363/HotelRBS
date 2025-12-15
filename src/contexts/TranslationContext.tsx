@@ -95,7 +95,6 @@ const COMMON_STRINGS = {
     // Destinations Page
     exploreAmazingDestinations: "Explore Amazing Destinations",
     discoverYourNext: "Discover Your Next",
-    adventure: "Adventure",
     fromBustlingCities: "From bustling cities to serene beaches, explore",
     incredibleDestinations: "incredible destinations across the Middle East",
     cities: "Cities",
@@ -298,19 +297,10 @@ const COMMON_STRINGS = {
     // NotFound
     pageNotFound: "404",
     oopsPageNotFound: "Oops! Page not found",
+    returnToHome: "Return to Home",
     // Reviews Section
     whatTravelersSay: "What Travelers Say",
     readReviews: "Read reviews from verified travelers",
-    // Discovery Feed
-    getInspired: "Get Inspired",
-    discoverYourNextAdventure: "Discover Your Next Adventure",
-    exploreCuratedExperiences: "Explore curated experiences, read traveler stories, and find your perfect destination",
-    all: "All",
-    experiences: "Experiences",
-    adventure: "Adventure",
-    culture: "Culture",
-    cityBreak: "City Break",
-    featured: "Featured",
     // Destination Story Section
     exploreDestination: "Explore Destination",
     findHotels: "Find Hotels",
@@ -396,7 +386,6 @@ const COMMON_STRINGS = {
     // Destinations Page
     exploreAmazingDestinations: "استكشف الوجهات المذهلة",
     discoverYourNext: "اكتشف",
-    adventure: "مغامرتك القادمة",
     fromBustlingCities: "من المدن الصاخبة إلى الشواطئ الهادئة، استكشف",
     incredibleDestinations: "وجهة مذهلة في جميع أنحاء الشرق الأوسط",
     cities: "مدن",
@@ -593,16 +582,6 @@ const COMMON_STRINGS = {
     // Reviews Section
     whatTravelersSay: "ماذا يقول المسافرون",
     readReviews: "اقرأ المراجعات من مسافرين موثقين",
-    // Discovery Feed
-    getInspired: "احصل على الإلهام",
-    discoverYourNextAdventure: "اكتشف مغامرتك القادمة",
-    exploreCuratedExperiences: "استكشف التجارب المختارة، واقرأ قصص المسافرين، وابحث عن وجهتك المثالية",
-    all: "الكل",
-    experiences: "التجارب",
-    adventure: "المغامرة",
-    culture: "الثقافة",
-    cityBreak: "رحلة المدينة",
-    featured: "مميز",
     // Destination Story Section
     exploreDestination: "استكشف الوجهة",
     findHotels: "العثور على الفنادق",
@@ -688,7 +667,6 @@ const COMMON_STRINGS = {
     // Destinations Page
     exploreAmazingDestinations: "Explorez des Destinations Extraordinaires",
     discoverYourNext: "Découvrez Votre",
-    adventure: "Prochaine Aventure",
     fromBustlingCities: "Des villes animées aux plages sereines, explorez",
     incredibleDestinations: "destinations incroyables à travers le Moyen-Orient",
     cities: "Villes",
@@ -881,20 +859,9 @@ const COMMON_STRINGS = {
     // NotFound
     pageNotFound: "404",
     oopsPageNotFound: "Oups! Page introuvable",
-    returnToHome: "Retour à l'Accueil",
     // Reviews Section
     whatTravelersSay: "Ce que Disent les Voyageurs",
     readReviews: "Lisez les avis de voyageurs vérifiés",
-    // Discovery Feed
-    getInspired: "Soyez Inspiré",
-    discoverYourNextAdventure: "Découvrez Votre Prochaine Aventure",
-    exploreCuratedExperiences: "Explorez des expériences sélectionnées, lisez les récits de voyageurs et trouvez votre destination parfaite",
-    all: "Tout",
-    experiences: "Expériences",
-    adventure: "Aventure",
-    culture: "Culture",
-    cityBreak: "Week-end en Ville",
-    featured: "En Vedette",
     // Destination Story Section
     exploreDestination: "Explorer la Destination",
     findHotels: "Trouver des Hôtels",

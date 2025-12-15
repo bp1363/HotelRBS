@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import AirbnbSearchBar from "@/components/AirbnbSearchBar";
+import NewCustomSearchBar from "@/components/NewCustomSearchBar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Star, MapPin, Heart, Camera, Award, Wifi, Car, Coffee } from "lucide-react";
@@ -145,7 +145,7 @@ const DestinationDetail = () => {
 
         {/* Search Bar */}
         <section className="w-full px-6 lg:px-8 -mt-8 relative z-10">
-          <AirbnbSearchBar />
+          <NewCustomSearchBar />
         </section>
 
         {/* Highlights */}
