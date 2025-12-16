@@ -811,7 +811,7 @@ const Header = ({ variant = "default" }: HeaderProps) => {
                   <GoogleSignInButton
                     onSuccess={() => {
                       // Close the dialog on successful sign-in
-                      setIsLoginDialogOpen(false);
+                      setShowLoginDialog(false);
                     }}
                   />
                 </form>
@@ -965,7 +965,7 @@ const Header = ({ variant = "default" }: HeaderProps) => {
                   <GoogleSignInButton
                     onSuccess={() => {
                       // Close the dialog on successful sign-in
-                      setIsLoginDialogOpen(false);
+                      setShowLoginDialog(false);
                     }}
                   />
                 </form>
