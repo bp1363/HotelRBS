@@ -563,7 +563,24 @@ const BookingModal: React.FC<BookingModalProps> = ({
               <div className="flex-1">
                 <p className="font-medium text-sm">{selectedRoom.Name}</p>
                 <p className="text-xs text-muted-foreground">{selectedRoom.MealType}</p>
-                {/* Refundable badge hidden as per requirements */}
+                <div className="flex items-center gap-2 mt-2">
+                  {/* Refundable/Non-Refundable Badge */}
+                  {(() => {
+                    const isRefundable = selectedRoom.IsRefundable === "true" || 
+                                         selectedRoom.IsRefundable === "1" || 
+                                         selectedRoom.IsRefundable === true ||
+                                         (typeof selectedRoom.IsRefundable === "string" && selectedRoom.IsRefundable.toLowerCase() === "true");
+                    return isRefundable ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 hover:bg-green-100 text-xs">
+                        ✓ Refundable
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 text-xs">
+                        ⚠ Non-Refundable
+                      </Badge>
+                    );
+                  })()}
+                </div>
               </div>
               <div className="text-right ml-4">
                 <div className="font-bold text-primary">

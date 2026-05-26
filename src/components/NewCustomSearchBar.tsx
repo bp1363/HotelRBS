@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   DestinationPicker,
   DatePicker,
+  UnifiedDateRangeTrigger,
   GuestSelector,
   SearchButton,
 } from "./CustomSearchComponents";
@@ -14,20 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Search } from "lucide-react";
-import { NATIONALITIES, DEFAULT_NATIONALITY } from "@/config/nationalities";
-import { CURRENCIES, DEFAULT_CURRENCY } from "@/config/currencies";
+import { DEFAULT_NATIONALITY } from "@/config/nationalities";
+import { DEFAULT_CURRENCY } from "@/config/currencies";
 
 interface Props {
   isSticky?: boolean;
@@ -52,8 +44,7 @@ const NewCustomSearchBar = ({ isSticky = false }: Props) => {
   const [childrenAges, setChildrenAges] = useState<number[]>([]);
   const [roomGuests, setRoomGuests] = useState<Array<{adults: number; children: number; childrenAges: number[]}>>([]);
   const [showDestinations, setShowDestinations] = useState(false);
-  const [showCheckinPicker, setShowCheckinPicker] = useState(false);
-  const [showCheckoutPicker, setShowCheckoutPicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGuests, setShowGuests] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeField, setActiveField] = useState<string | null>(null);
@@ -97,8 +88,7 @@ const NewCustomSearchBar = ({ isSticky = false }: Props) => {
 
       if (!clickedInsideSearch) {
         setShowDestinations(false);
-        setShowCheckinPicker(false);
-        setShowCheckoutPicker(false);
+        setShowDatePicker(false);
         setShowGuests(false);
         setIsExpanded(false);
         setActiveField(null);
@@ -159,8 +149,7 @@ const NewCustomSearchBar = ({ isSticky = false }: Props) => {
 
     // Close all other dropdowns
     setShowDestinations(false);
-    setShowCheckinPicker(false);
-    setShowCheckoutPicker(false);
+    setShowDatePicker(false);
     setShowGuests(false);
 
     // Open the relevant dropdown
@@ -168,11 +157,10 @@ const NewCustomSearchBar = ({ isSticky = false }: Props) => {
       case "destination":
         setShowDestinations(true);
         break;
+      case "dates":
       case "checkin":
-        setShowCheckinPicker(true);
-        break;
       case "checkout":
-        setShowCheckoutPicker(true);
+        setShowDatePicker(true);
         break;
       case "guests":
         setShowGuests(true);
@@ -213,37 +201,18 @@ const NewCustomSearchBar = ({ isSticky = false }: Props) => {
           {/* Divider */}
           <div className="w-px h-6 bg-border"></div>
 
-          {/* Check in */}
-          <div className="flex-1">
-            <DatePicker
-              date={startDate}
-              onDateChange={setStartDate}
-              isOpen={showCheckinPicker}
-              onOpenChange={(open) => {
-                setShowCheckinPicker(open);
-                if (open) handleFieldFocus("checkin");
-              }}
-              type="checkin"
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="w-px h-6 bg-border"></div>
-
-          {/* Check out */}
-          <div className="flex-1">
-            <DatePicker
-              date={endDate}
-              onDateChange={setEndDate}
-              isOpen={showCheckoutPicker}
-              onOpenChange={(open) => {
-                setShowCheckoutPicker(open);
-                if (open) handleFieldFocus("checkout");
-              }}
-              type="checkout"
-              minDate={startDate}
-            />
-          </div>
+          {/* Unified Date Range Picker (CuddlyNest style) */}
+          <UnifiedDateRangeTrigger
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            isOpen={showDatePicker}
+            onOpenChange={(open) => {
+              setShowDatePicker(open);
+              if (open) handleFieldFocus("dates");
+            }}
+          />
 
           {/* Divider */}
           <div className="w-px h-6 bg-border"></div>
@@ -269,37 +238,6 @@ const NewCustomSearchBar = ({ isSticky = false }: Props) => {
             />
           </div>
 
-          {/* Divider */}
-          <div className="w-px h-6 bg-border"></div>
-
-          {/* Nationality Selector */}
-          <div className="w-auto min-w-[95px] max-w-[105px]">
-            <Select value={nationality} onValueChange={(value) => {
-              setNationality(value);
-              localStorage.setItem("selectedNationality", value);
-              window.dispatchEvent(new CustomEvent("nationalityChanged", { detail: value }));
-            }}>
-              <SelectTrigger className="h-12 border-0 bg-transparent hover:bg-muted/50 rounded-lg px-2 focus:ring-0">
-                <SelectValue>
-                  <div className="flex items-center space-x-1.5">
-                    <span className="text-lg">{NATIONALITIES.find(n => n.code === nationality)?.flag || "🇦🇪"}</span>
-                    <span className="text-sm text-foreground font-medium">{nationality}</span>
-                  </div>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px] !z-[10000]">
-                <SelectGroup>
-                  <SelectLabel className="px-2 py-2 text-sm font-semibold text-foreground">Guest Nationality</SelectLabel>
-                  {NATIONALITIES.map((nat) => (
-                    <SelectItem key={nat.code} value={nat.code}>
-                      {nat.flag} {nat.name} ({nat.code})
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Search Button */}
           <div className="p-1">
             <SearchButton onSearch={handleSearchClick} expanded={isExpanded} />
@@ -309,7 +247,6 @@ const NewCustomSearchBar = ({ isSticky = false }: Props) => {
           <div className="flex items-center ml-2">
             <video
               src="/animated-video.mp4"
-              alt="Animated Search Element"
               autoPlay
               loop
               muted

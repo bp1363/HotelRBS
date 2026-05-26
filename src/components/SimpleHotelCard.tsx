@@ -37,12 +37,10 @@ const SimpleHotelCard = ({
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-    e.preventDefault();
     setIsSearchModalOpen(true);
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault();
     setIsSearchModalOpen(true);
   };
 

@@ -1,10 +1,16 @@
 /**
  * Telr Payment Gateway Configuration
  * 
- * Store your Telr credentials here or use environment variables
+ * ⚠️ DEPRECATED: This configuration has been removed.
+ * Telr payment gateway is no longer used.
  * 
- * SECURITY NOTE: Never commit real credentials to version control!
- * Use environment variables for production.
+ * This file is kept for reference but should not be imported.
+ * Please configure your new payment gateway instead.
+ * 
+ * Previous configuration:
+ * - Store your Telr credentials here or use environment variables
+ * - SECURITY NOTE: Never commit real credentials to version control!
+ * - Use environment variables for production.
  */
 
 export const TELR_CONFIG = {

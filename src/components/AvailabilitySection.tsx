@@ -208,7 +208,11 @@ export const AvailabilitySection = ({
                   {formatDateRange()}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent 
+                className="w-auto p-0 max-h-[90vh] overflow-y-auto overscroll-contain" 
+                align="start"
+                style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+              >
                 <div className="flex flex-col sm:flex-row">
                   <div className="p-3 border-r">
                     <Label className="text-xs mb-2 block">Check-in</Label>
@@ -217,8 +221,8 @@ export const AvailabilitySection = ({
                       selected={checkInDate}
                       onSelect={(date) => {
                         setCheckInDate(date);
-                        // If check-out is before or same as new check-in, reset it
-                        if (date && checkOutDate && checkOutDate <= date) {
+                        // Automatically set checkout to next day when checkin is selected
+                        if (date) {
                           const nextDay = new Date(date);
                           nextDay.setDate(nextDay.getDate() + 1);
                           setCheckOutDate(nextDay);

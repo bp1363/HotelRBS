@@ -1,5 +1,8 @@
 import { APP_CONFIG } from "@/config/constants";
 
+// Import the new ElasticBean API
+import { searchHotelsHybrid } from './elasticBeanApi';
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   "http://pfort.travelapihost.com/HotelServiceRest";
@@ -13,6 +16,8 @@ const getApiUrl = (endpoint: string) => {
 };
 const authHeader = btoa(`${API_USERNAME}:${API_PASSWORD}`);
 export interface HotelSearchParams {
+  // Search hotels using Hybrid approach (ElasticBean + Live API) with fallback to Live API only
+  CountryCode(CountryCode: any, CityCode: string): unknown;
   CheckIn: string;
   CheckOut: string;
   HotelCodes?: string;
@@ -70,18 +75,34 @@ export interface HotelSearchResponse {
   HotelResult: HotelResult[] | HotelResult;
 }
 
-// Search hotels using Travzilla API - NO MOCK DATA
+// Search hotels using Hybrid approach (ElasticBean + Live API) with fallback to Live API only
 export const searchHotels = async (
   params: HotelSearchParams
 ): Promise<HotelSearchResponse> => {
   try {
-    console.log("🔍 Calling Travzilla API with params:", params);
-
-    // Always use real Travzilla API - no fallback to mock data
-    return await searchHotelsTravzilla(params);
+    console.log("🔍 Starting hybrid search with ElasticBean + Live API fallback");
+    
+    // Check if ElasticBean API is configured
+    const elasticBeanConfigured = import.meta.env.VITE_ELASTICBEAN_API_URL && 
+                                 import.meta.env.VITE_ELASTICBEAN_API_KEY;
+    
+    if (elasticBeanConfigured) {
+      console.log("🔄 Using hybrid search (ElasticBean database + Live API pricing)");
+      return await searchHotelsHybrid(params);
+    } else {
+      console.log("⚠️ ElasticBean API not configured, using Live API only");
+      return await searchHotelsTravzilla(params);
+    }
   } catch (error) {
-    console.error("💥 Hotel search error:", error);
-    throw error;
+    console.error("💥 Hybrid search failed, falling back to Live API only:", error);
+    
+    // Fallback to live API only
+    try {
+      return await searchHotelsTravzilla(params);
+    } catch (fallbackError) {
+      console.error("💥 Live API fallback also failed:", fallbackError);
+      throw fallbackError;
+    }
   }
 };
 
@@ -106,13 +127,15 @@ const searchHotelsTravzilla = async (
     console.log("📤 PaxRooms:", JSON.stringify(params.PaxRooms, null, 2));
     console.log("🔍 Environment check - PROXY_SERVER_URL:", PROXY_SERVER_URL);
 
+    const { CityCode, ...safeParams } = params;
+    console.log("🚀 Sending to PFORT search (NO CityCode):", safeParams);
     const response = await fetch(proxyUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify(params),
+      body: JSON.stringify(safeParams),
     });
 
     console.log("📥 Response Status:", response.status);

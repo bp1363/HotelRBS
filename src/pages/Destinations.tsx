@@ -48,7 +48,7 @@ const Destinations = () => {
       id: 3,
       name: "Dubai",
       image:
-        "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&h=600&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop&q=80",
       description: "World-class luxury destination with iconic architecture",
       properties: "450+",
       rating: 4.9,
@@ -96,7 +96,7 @@ const Destinations = () => {
       id: 7,
       name: "Medina",
       image:
-        "https://images.unsplash.com/photo-1591604403285-1ea6e1b0a6d5?w=800&h=600&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop&q=80",
       description: "The Prophet's city with profound Islamic heritage",
       properties: "95+",
       rating: 4.9,

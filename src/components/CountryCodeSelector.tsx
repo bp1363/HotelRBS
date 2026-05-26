@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -6,7 +5,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface CountryCode {
@@ -68,16 +66,16 @@ export const CountryCodeSelector = ({
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger
         className={cn(
-          "w-[140px] sm:w-[160px] h-full border-r rounded-r-none",
+          "w-[140px] sm:w-[160px] h-full border-r rounded-r-none relative",
+          "[&>span:first-child]:opacity-0",
           className
         )}
       >
-        <SelectValue>
-          <div className="flex items-center gap-2">
-            <span className="text-base">{selectedCountry.flag}</span>
-            <span className="text-sm font-medium">{selectedCountry.dialCode}</span>
-          </div>
-        </SelectValue>
+        <SelectValue />
+        <div className="flex items-center gap-2 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+          <span className="text-base">{selectedCountry.flag}</span>
+          <span className="text-sm font-medium">{selectedCountry.dialCode}</span>
+        </div>
       </SelectTrigger>
       <SelectContent className="max-h-[300px]">
         {COUNTRIES.map((country) => (

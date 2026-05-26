@@ -9,11 +9,12 @@ import { ArrowLeft, CheckCircle, Clock, User, Calendar, Users, CreditCard, Walle
 import BookingModal from "@/components/BookingModal";
 import CancelModal from "@/components/CancelModal";
 import { useAuth } from '@/hooks/useAuth';
-import { createTelrOrder } from '@/services/telrPaymentApi';
+import { createPayORCOrder } from '@/services/payorcPaymentApi';
 import { getCurrencySymbol, convertCurrency, EXCHANGE_RATES } from '@/services/currencyConverter';
 import { completeBooking } from '@/services/bookingService';
 import { addBookingToCustomBackend } from '@/services/bookingsApi';
 import { useTranslation } from "@/contexts/TranslationContext";
+import { PayORCIframe } from '@/components/PayORCIframe';
 
 const Booking = () => {
   const { t } = useTranslation();
@@ -28,6 +29,10 @@ const Booking = () => {
   const [isBookingInProgress, setIsBookingInProgress] = useState(false);
   const [isPayLaterInProgress, setIsPayLaterInProgress] = useState(false);
   const [hasGuestDetails, setHasGuestDetails] = useState(false);
+  const [showPayORCIframe, setShowPayORCIframe] = useState(false);
+  const [payORCIframeUrl, setPayORCIframeUrl] = useState<string>('');
+  const [payORCOrderId, setPayORCOrderId] = useState<string>('');
+  const [useIframeMode, setUseIframeMode] = useState(true); // Default to iframe mode for better UX
 
   // Check if guest details exist
   const checkGuestDetails = () => {
@@ -155,9 +160,8 @@ const Booking = () => {
       // Set booking in progress
       setIsBookingInProgress(true);
 
-      // IMPORTANT: Telr account only supports AED currency
-      // Always use AED for payments regardless of hotel currency
-      const currency = 'AED';
+      // Get currency from hotel data or use default
+      const currency = hotelDetails?.Currency || 'USD';
 
       if (totalFare <= 0) {
         throw new Error('Invalid room price. Cannot proceed to payment.');
@@ -167,36 +171,83 @@ const Booking = () => {
       const bookingHistory = JSON.parse(localStorage.getItem('booking_history') || '[]');
       const latestBooking = bookingHistory[bookingHistory.length - 1];
 
-      console.log('💰 Creating payment order for amount:', totalFare, currency);
-      console.log('ℹ️  Note: Using AED currency as configured in Telr account');
+      console.log('💰 Creating PayORC order for amount:', totalFare, currency);
 
-      // Create Telr payment order
-      const telrOrder = await createTelrOrder({
-        cartId: currentBookingRefId || 'BOOKING_' + Date.now(),
+      // Extract customer name parts
+      const customerName = `${bookingForm.firstName || latestBooking?.customerName?.split(' ')[0] || 'Guest'} ${bookingForm.lastName || latestBooking?.customerName?.split(' ').slice(1).join(' ') || 'User'}`.trim();
+      const customerEmail = bookingForm.email || latestBooking?.customerEmail || user?.email || 'guest@example.com';
+      const customerPhone = bookingForm.phone || user?.phone || '1234567890';
+      
+      // Extract country code from phone if available, or use default
+      const phoneWithoutCode = customerPhone.replace(/^\+?[\d\s-()]+/, '').replace(/\D/g, '');
+      const countryCode = bookingForm.countryCode || '971'; // Default to UAE
+
+      // Create PayORC order (matching PayORC API structure)
+      const orderResponse = await createPayORCOrder({
+        customer: {
+          m_customer_id: user?.customer_id || 'guest_' + Date.now(),
+          name: customerName,
+          email: customerEmail,
+          mobile: phoneWithoutCode,
+          code: countryCode,
+        },
+        order: {
+          m_order_id: currentBookingRefId || 'BOOKING_' + Date.now(),
         amount: totalFare.toFixed(2),
         currency: currency,
         description: `Hotel Booking - ${hotelDetails?.HotelName || 'Hotel'}`,
-        customer: {
-          ref: user?.customer_id || 'guest_' + Date.now(),
-          email: bookingForm.email || latestBooking?.customerEmail || user?.email || 'guest@example.com',
-          forenames: bookingForm.firstName || latestBooking?.customerName?.split(' ')[0] || 'Guest',
-          surname: bookingForm.lastName || latestBooking?.customerName?.split(' ').slice(1).join(' ') || 'User',
-          addressLine1: bookingForm.address || latestBooking?.address || '123 Main Street',
+          quantity: '1',
+        },
+        items: [{
+          title: `Hotel Booking - ${hotelDetails?.HotelName || 'Hotel'}`,
+          description: `Check-in: ${location.state?.checkIn || 'N/A'}, Check-out: ${location.state?.checkOut || 'N/A'}`,
+          quantity: 1,
+          unit_price: totalFare.toFixed(2),
+          discount_amount: '0.00',
+          reference_id: currentBookingRefId || '',
+          is_refundable: true,
+        }],
+        billing: {
+          address_line1: bookingForm.address || latestBooking?.address || '123 Main Street',
+          address_line2: '',
           city: bookingForm.city || latestBooking?.city || 'Dubai',
-          country: bookingForm.country || 'AE', // ISO country code
-          phone: bookingForm.phone || user?.phone || '1234567890'
+          province: bookingForm.city || 'Dubai',
+          country: bookingForm.country || 'AE',
+          pin: bookingForm.postalCode || '',
+        },
+        shipping: {
+          shipping_name: customerName,
+          shipping_email: customerEmail,
+          shipping_code: countryCode,
+          shipping_mobile: phoneWithoutCode,
+          address_line1: bookingForm.address || latestBooking?.address || '123 Main Street',
+          city: bookingForm.city || latestBooking?.city || 'Dubai',
+          province: bookingForm.city || 'Dubai',
+          country: bookingForm.country || 'AE',
+          pin: bookingForm.postalCode || '',
+          shipping_currency: currency,
+          shipping_amount: '0',
         },
         returnUrls: {
-          authorised: `${window.location.origin}/payment/success`,
-          declined: `${window.location.origin}/payment/failure`,
-          cancelled: `${window.location.origin}/payment/cancelled`
-        }
+          success: `${window.location.origin}/payment/success`,
+          cancel: `${window.location.origin}/payment/cancelled`,
+          failure: `${window.location.origin}/payment/failure`,
+        },
+        metadata: {
+          bookingReferenceId: currentBookingRefId,
+          hotelName: hotelDetails?.HotelName,
+          checkIn: location.state?.checkIn,
+          checkOut: location.state?.checkOut,
+        },
       });
 
-      console.log('✅ Telr order created:', telrOrder.order.ref);
+      console.log('✅ PayORC order created:', orderResponse.order_id);
 
-      // Save Telr order reference and booking data for use after payment
-      localStorage.setItem('telr_order_ref', telrOrder.order.ref);
+      // Save order ID and booking data for use after payment
+      localStorage.setItem('payorc_order_id', orderResponse.order_id || '');
+      if (orderResponse.transaction_id) {
+        localStorage.setItem('payorc_transaction_id', orderResponse.transaction_id);
+      }
       localStorage.setItem('pending_booking_data', JSON.stringify({
         prebookData,
         hotelDetails,
@@ -204,10 +255,22 @@ const Booking = () => {
         checkOut: location.state?.checkOut
       }));
 
-      // Redirect to Telr payment page
-      console.log('🔗 Redirecting to Telr payment page...');
+      // Handle payment: iframe mode or redirect mode
+      if (useIframeMode && orderResponse.iframe_url) {
+        // Iframe mode: Show payment form in modal
+        console.log('🖼️ Opening PayORC payment in iframe...');
       console.log('⚠️ Booking will be confirmed ONLY after successful payment');
-      window.location.href = telrOrder.order.url;
+        setPayORCIframeUrl(orderResponse.iframe_url);
+        setPayORCOrderId(orderResponse.order_id || '');
+        setShowPayORCIframe(true);
+      } else if (orderResponse.payment_url) {
+        // Redirect mode: Redirect to PayORC payment page
+        console.log('🔗 Redirecting to PayORC payment page...');
+        console.log('⚠️ Booking will be confirmed ONLY after successful payment');
+        window.location.href = orderResponse.payment_url;
+      } else {
+        throw new Error('Payment URL or iframe URL not received from payment gateway');
+      }
       
     } catch (error) {
       console.error('❌ Booking error:', error);
@@ -223,6 +286,33 @@ const Booking = () => {
     } finally {
       setIsBookingInProgress(false);
     }
+  };
+
+  // Handle PayORC iframe success
+  const handleIframeSuccess = async (orderId: string, transactionId?: string) => {
+    console.log('✅ Payment successful via iframe, order ID:', orderId);
+    setShowPayORCIframe(false);
+    
+    // Navigate to success page with order ID
+    navigate(`/payment/success?p_order_id=${orderId}${transactionId ? `&transaction_id=${transactionId}` : ''}`);
+  };
+
+  // Handle PayORC iframe failure
+  const handleIframeFailure = (orderId: string, error?: string) => {
+    console.log('❌ Payment failed via iframe, order ID:', orderId);
+    setShowPayORCIframe(false);
+    
+    // Navigate to failure page
+    navigate(`/payment/failure?p_order_id=${orderId}${error ? `&error=${encodeURIComponent(error)}` : ''}`);
+  };
+
+  // Handle PayORC iframe cancel
+  const handleIframeCancel = () => {
+    console.log('⚠️ Payment cancelled via iframe');
+    setShowPayORCIframe(false);
+    
+    // Navigate to cancel page
+    navigate(`/payment/cancelled?p_order_id=${payORCOrderId}`);
   };
 
   const handlePayLater = async () => {
@@ -858,6 +948,22 @@ const Booking = () => {
             />
           </div>
         </div>
+      )}
+
+      {/* PayORC Iframe Payment Modal */}
+      {showPayORCIframe && payORCIframeUrl && (
+        <PayORCIframe
+          iframeUrl={payORCIframeUrl}
+          orderId={payORCOrderId}
+          onSuccess={handleIframeSuccess}
+          onFailure={handleIframeFailure}
+          onCancel={handleIframeCancel}
+          isOpen={showPayORCIframe}
+          onClose={() => {
+            setShowPayORCIframe(false);
+            setIsBookingInProgress(false);
+          }}
+        />
       )}
 
       {/* Cancel Modal */}

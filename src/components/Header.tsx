@@ -46,6 +46,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import NewCustomSearchBar from "@/components/NewCustomSearchBar";
 import SearchFilters from "@/components/SearchFilters";
 import { Badge } from "@/components/ui/badge";
@@ -360,6 +369,41 @@ const Header = ({ variant = "default" }: HeaderProps) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Guest Nationality Selector - Between Language and Currency */}
+            <Select value={nationality} onValueChange={handleNationalityChange}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SelectTrigger className="h-10 w-auto px-3 border-0 bg-transparent hover:bg-muted/80 transition-all duration-200 rounded-pill shadow-sm hover:shadow-md focus:ring-0">
+                    <SelectValue placeholder="Nationality">
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <span className="text-lg flex-shrink-0">
+                          {NATIONALITIES.find((n) => n.code === nationality)?.flag || "🇦🇪"}
+                        </span>
+                        <span className="text-sm font-medium truncate max-w-[120px]">
+                          {NATIONALITIES.find((n) => n.code === nationality)?.code || nationality}
+                        </span>
+                      </div>
+                    </SelectValue>
+                  </SelectTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Guest Nationality</p>
+                </TooltipContent>
+              </Tooltip>
+              <SelectContent className="z-[10000] bg-background border shadow-lg max-h-[300px] overflow-y-auto">
+                <SelectGroup>
+                  <SelectLabel className="px-2 py-2 text-sm font-semibold text-foreground">
+                    Guest Nationality
+                  </SelectLabel>
+                  {NATIONALITIES.map((nat) => (
+                    <SelectItem key={nat.code} value={nat.code}>
+                      {nat.flag} {nat.name} ({nat.code})
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+
             {/* Currency Selector - Next to Language */}
             <DropdownMenu>
               <Tooltip>
@@ -405,17 +449,17 @@ const Header = ({ variant = "default" }: HeaderProps) => {
               <DropdownMenuTrigger asChild>
                 <div className="flex items-center space-x-2 border border-border rounded-full p-2 hover:shadow-xl transition-all duration-300 cursor-pointer group bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-105 active:scale-95">
                   <Menu className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-all duration-300 group-hover:rotate-180" />
-                  <div className="h-8 w-8 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110">
+                  <div className="h-8 w-8 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-110 md:h-8 md:w-8 h-6 w-6 overflow-hidden">
                     {isAuthenticated && user ? (
                       user.profile_url ? (
-                        <img src={user.profile_url} alt={user.first_name} className="h-8 w-8 rounded-full object-cover" />
+                        <img src={user.profile_url} alt={user.first_name} className="h-full w-full rounded-full object-cover object-center" />
                       ) : (
-                        <span className="text-xs font-semibold text-primary-foreground">
+                        <span className="text-xs font-semibold text-primary-foreground md:text-xs text-[10px]">
                           {user.first_name?.[0]}{user.last_name?.[0]}
                         </span>
                       )
                     ) : (
-                      <User className="h-4 w-4 text-primary-foreground transition-transform duration-300 group-hover:scale-110" />
+                      <User className="h-4 w-4 text-primary-foreground transition-transform duration-300 group-hover:scale-110 md:h-4 md:w-4 h-3 w-3" />
                     )}
                   </div>
                 </div>

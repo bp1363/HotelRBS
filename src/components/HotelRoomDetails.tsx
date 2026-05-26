@@ -208,10 +208,19 @@ const HotelRoomDetails: React.FC<HotelRoomDetailsProps> = ({ bookingCode, onClos
     }
   }, [bookingCode, preferredCurrency, getCachedData, processRoomData, translateInBackground]);
 
-  // Memoize room list to avoid re-renders
+  // Helper function to check if room is refundable
+  const isRoomRefundable = (room: RoomOption): boolean => {
+    return room.IsRefundable === "true" || 
+           room.IsRefundable === "1" || 
+           room.IsRefundable === true ||
+           (typeof room.IsRefundable === "string" && room.IsRefundable.toLowerCase() === "true");
+  };
+
+  // Memoize room list to avoid re-renders - Filter to show only refundable rooms
   const roomList = useMemo(() => {
     if (!hotelData?.Rooms) return [];
-    return hotelData.Rooms;
+    // Filter to show only refundable rooms
+    return hotelData.Rooms.filter(room => isRoomRefundable(room));
   }, [hotelData?.Rooms]);
 
   const getAmenityIcon = (amenity: string) => {
@@ -278,18 +287,33 @@ const HotelRoomDetails: React.FC<HotelRoomDetailsProps> = ({ bookingCode, onClos
     );
   }
 
+  // Check if there are any refundable rooms
+  const hasRefundableRooms = roomList.length > 0;
+
   return (
     <div className="w-full space-y-6">
         {/* Room Options List */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Room Types & Meal Plans</h3>
+            <h3 className="text-lg font-semibold">Refundable Room Types & Meal Plans</h3>
             {isTranslating && (
               <span className="text-xs text-muted-foreground">Translating...</span>
             )}
           </div>
-          <div className="grid gap-4">
-            {roomList.map((room, index) => {
+          {!hasRefundableRooms ? (
+            <Card className="w-full">
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center text-center">
+                  <p className="text-muted-foreground mb-2">No refundable rooms available</p>
+                  <p className="text-sm text-muted-foreground">
+                    This hotel currently doesn't have any refundable room options for your selected dates.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {roomList.map((room, index) => {
               const isSelected = selectedRoom?.BookingCode === room.BookingCode;
               return (
                 <div 
@@ -303,8 +327,11 @@ const HotelRoomDetails: React.FC<HotelRoomDetailsProps> = ({ bookingCode, onClos
                     <div className="flex-1">
                       <h4 className="font-semibold text-lg">{room.Name}</h4>
                       <p className="text-sm text-muted-foreground mb-2">{room.MealType}</p>
-                      <div className="flex items-center gap-2 mb-2">
-                        {/* Refundable badge hidden as per requirements */}
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        {/* All rooms shown are refundable, so always show refundable badge */}
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 hover:bg-green-100">
+                          ✓ Refundable
+                        </Badge>
                         {room.WithTransfers === "true" && (
                           <Badge variant="outline">With Transfers</Badge>
                         )}
@@ -342,17 +369,18 @@ const HotelRoomDetails: React.FC<HotelRoomDetailsProps> = ({ bookingCode, onClos
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Summary */}
         <div className="bg-muted p-4 rounded-lg">
           <h4 className="font-semibold mb-2">Summary</h4>
           <p className="text-sm text-muted-foreground">
-            Found {hotelData.Rooms.length} room options with different meal
+            Found {roomList.length} refundable room option{roomList.length !== 1 ? 's' : ''} with different meal
             plans and pricing. Each room type offers various meal options (Room
-            Only, Bed & Breakfast, Half Board, Full Board) with different
-            pricing and refund policies.
+            Only, Bed & Breakfast, Half Board, Full Board) with flexible
+            cancellation policies.
           </p>
         </div>
     </div>

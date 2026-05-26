@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,11 @@ interface SearchModalProps {
 
 const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, defaultDestination = "" }) => {
   const navigate = useNavigate();
+  
+  const handleClose = () => {
+    console.log('SearchModal closing');
+    onClose();
+  };
   
   // Set default dates (1 week from now, 3 days stay)
   const defaultStartDate = new Date();
@@ -150,9 +156,21 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, defaultDesti
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        {/* Custom Close Button */}
+        <DialogClose asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-4 top-4 z-[100] rounded-full bg-white shadow-md hover:bg-gray-100"
+            onClick={handleClose}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </DialogClose>
+        
+        <DialogHeader className="pr-12">
           <DialogTitle>Search Hotels</DialogTitle>
           <DialogDescription>
             Enter your search criteria to find the perfect hotel
@@ -187,9 +205,19 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, defaultDesti
                 id="checkin"
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => {
+                  const checkInValue = e.target.value;
+                  setStartDate(checkInValue);
+                  // Automatically set checkout to next day when checkin is selected
+                  if (checkInValue) {
+                    const checkInDate = new Date(checkInValue);
+                    const nextDay = new Date(checkInDate);
+                    nextDay.setDate(nextDay.getDate() + 1);
+                    setEndDate(nextDay.toISOString().split('T')[0]);
+                  }
+                }}
                 min={new Date().toISOString().split('T')[0]}
-                className="w-full"
+                className="w-full cursor-pointer"
               />
             </div>
             <div className="space-y-2">
@@ -203,7 +231,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, defaultDesti
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 min={startDate || new Date().toISOString().split('T')[0]}
-                className="w-full"
+                className="w-full cursor-pointer"
               />
             </div>
           </div>

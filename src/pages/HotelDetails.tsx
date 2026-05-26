@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Star,
@@ -40,7 +41,7 @@ import HotelRoomDetails from "@/components/HotelRoomDetails";
 import HotelMap from "@/components/HotelMap";
 import { AvailabilitySection } from "@/components/AvailabilitySection";
 import { prebookHotel } from "@/services/bookingapi";
-import { searchHotels, getHotelDetails } from "@/services/hotelApi";
+import { searchHotels, getHotelDetails, getHotelRoomDetails, HotelSearchResponse } from "@/services/hotelApi";
 import { APP_CONFIG, getCurrentDate, getDateFromNow } from "@/config/constants";
 import { storeHotelAndRoom } from "@/services/hotelStorageApi";
 import { addToWishlist, isHotelInWishlist, removeFromWishlist } from "@/services/wishlistApi";
@@ -48,6 +49,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { hotels as localHotels } from "@/data/hotels";
 import { getCurrencySymbol, convertHotelPrices } from "@/services/currencyConverter";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { createPayORCOrder } from '@/services/payorcPaymentApi';
+import { PayORCIframe } from '@/components/PayORCIframe';
+import BookingModal from "@/components/BookingModal";
+import { getBookingFromCustomAPI } from "@/services/bookingsApi";
 
 const HotelDetails = () => {
   const { t, language } = useTranslation();
@@ -75,6 +80,17 @@ const HotelDetails = () => {
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [searchingAvailability, setSearchingAvailability] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState<any[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [showImageGallery, setShowImageGallery] = useState(false);
+  
+  // Express Checkout state
+  const [showExpressCheckout, setShowExpressCheckout] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showPayORCIframe, setShowPayORCIframe] = useState(false);
+  const [payORCIframeUrl, setPayORCIframeUrl] = useState<string>('');
+  const [payORCOrderId, setPayORCOrderId] = useState<string>('');
+  const [expressCheckoutLoading, setExpressCheckoutLoading] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     amenities: false,
     dining: false,
@@ -175,18 +191,31 @@ const HotelDetails = () => {
         ResponseTime: APP_CONFIG.DEFAULT_RESPONSE_TIME
       };
       
-      const searchResponse = await Promise.race([
+      const searchResponse: HotelSearchResponse = await Promise.race([
         searchHotels(apiSearchParams),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Availability check timeout after 60 seconds')), 60000)
         )
-      ]);
+      ]) as HotelSearchResponse;
       console.log('🔍 Availability check response:', searchResponse);
       
       // Convert prices if response is in USD and preferred currency is different
-      if (searchResponse?.HotelResult && searchResponse.HotelResult.Currency === "USD" && currency !== "USD") {
-        console.log(`💱 Converting search response prices from USD to ${currency}`);
-        searchResponse.HotelResult = convertHotelPrices(searchResponse.HotelResult, currency);
+      if (searchResponse?.HotelResult) {
+        const hotelResult = searchResponse.HotelResult;
+        if (Array.isArray(hotelResult)) {
+          // Handle array of hotels
+          const updatedResults = hotelResult.map((hotel) => 
+            hotel.Currency === "USD" && currency !== "USD" 
+              ? convertHotelPrices(hotel, currency) 
+              : hotel
+          );
+          searchResponse.HotelResult = updatedResults;
+        } else {
+          // Handle single hotel
+          if (hotelResult.Currency === "USD" && currency !== "USD") {
+            searchResponse.HotelResult = convertHotelPrices(hotelResult, currency);
+          }
+        }
       }
       
       // Check if hotel is available
@@ -228,7 +257,11 @@ const HotelDetails = () => {
       }
       
       // Check if we got valid hotel results
-      if (!searchResponse?.HotelResult?.length || searchResponse.HotelResult.length === 0) {
+      const hotelResult = searchResponse?.HotelResult;
+      const hasValidResults = hotelResult && 
+        (Array.isArray(hotelResult) ? hotelResult.length > 0 : Object.keys(hotelResult).length > 0);
+      
+      if (!hasValidResults) {
         console.log('❌ No hotel results found for the new parameters');
         toast({
           title: "Hotel Not Available",
@@ -1058,12 +1091,12 @@ const HotelDetails = () => {
         
         // Fallback to search API
         console.log('🔍 Calling search API to get booking code...');
-        const searchResponse = await Promise.race([
+        const searchResponse: HotelSearchResponse = await Promise.race([
           searchHotels(apiSearchParams),
           new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Search request timeout after 60 seconds')), 60000)
           )
-        ]);
+        ]) as HotelSearchResponse;
         
         console.log('🔍 Search response:', searchResponse);
         console.log('🔍 HotelResult:', searchResponse?.HotelResult);
@@ -1106,9 +1139,10 @@ const HotelDetails = () => {
             
             if (foundHotel) {
               // Extract coordinates - API uses "Lattitude" with double 't'
-              if (foundHotel.Lattitude !== undefined && foundHotel.Longitude !== undefined) {
-                const lat = parseFloat(foundHotel.Lattitude);
-                const lng = parseFloat(foundHotel.Longitude);
+              const hotelWithCoords = foundHotel as any;
+              if (hotelWithCoords.Lattitude !== undefined && hotelWithCoords.Longitude !== undefined) {
+                const lat = parseFloat(hotelWithCoords.Lattitude);
+                const lng = parseFloat(hotelWithCoords.Longitude);
                 
                 if (!isNaN(lat) && !isNaN(lng)) {
                   setHotelCoordinates({ lat, lng });
@@ -1121,15 +1155,15 @@ const HotelDetails = () => {
               }
               
               if (foundHotel.Rooms) {
-                
-                if (Array.isArray(foundHotel.Rooms) && foundHotel.Rooms.length > 0) {
-                  const foundBookingCode = foundHotel.Rooms[0].BookingCode;
+                const foundHotelWithRooms = foundHotel as any;
+                if (Array.isArray(foundHotelWithRooms.Rooms) && foundHotelWithRooms.Rooms.length > 0) {
+                  const foundBookingCode = foundHotelWithRooms.Rooms[0].BookingCode;
                   setBookingCode(foundBookingCode);
                   console.log('✅ Found booking code from search (array):', foundBookingCode);
                   return;
-                } else if (foundHotel.Rooms.BookingCode) {
+                } else if (foundHotelWithRooms.Rooms.BookingCode) {
                   // Handle object structure where Rooms is an object
-                  const foundBookingCode = foundHotel.Rooms.BookingCode;
+                  const foundBookingCode = foundHotelWithRooms.Rooms.BookingCode;
                   setBookingCode(foundBookingCode);
                   console.log('✅ Found booking code from search (object):', foundBookingCode);
                   return;
@@ -1138,21 +1172,23 @@ const HotelDetails = () => {
             }
           } else if (hotel.HotelCode) {
             // Extract coordinates - API uses "Lattitude" with double 't'
-            if (hotel.Lattitude && hotel.Longitude) {
+            const hotelWithCoords = hotel as any;
+            if (hotelWithCoords.Lattitude && hotelWithCoords.Longitude) {
               setHotelCoordinates({
-                lat: parseFloat(hotel.Lattitude),
-                lng: parseFloat(hotel.Longitude)
+                lat: parseFloat(hotelWithCoords.Lattitude),
+                lng: parseFloat(hotelWithCoords.Longitude)
               });
               console.log('🗺️ Set coordinates from single hotel:', {
-                lat: hotel.Lattitude,
-                lng: hotel.Longitude
+                lat: hotelWithCoords.Lattitude,
+                lng: hotelWithCoords.Longitude
               });
             }
             
             // Handle object structure where Rooms is an object
-            if (hotel.Rooms && (hotel.HotelCode === id || hotel.HotelCode === String(id))) {
-              if (hotel.Rooms.BookingCode) {
-                const foundBookingCode = hotel.Rooms.BookingCode;
+            const hotelWithRooms = hotel as any;
+            if (hotelWithRooms.Rooms && (hotel.HotelCode === id || hotel.HotelCode === String(id))) {
+              if (hotelWithRooms.Rooms.BookingCode) {
+                const foundBookingCode = hotelWithRooms.Rooms.BookingCode;
                 setBookingCode(foundBookingCode);
                 console.log('✅ Found booking code from search (single):', foundBookingCode);
                 return;
@@ -1203,6 +1239,297 @@ const HotelDetails = () => {
     setShowRoomDetails(false);
   };
 
+  // Fetch available rooms for horizontal display
+  const fetchAvailableRooms = async (bookingCodeParam: string) => {
+    if (!bookingCodeParam || bookingCodeParam === "no-booking-code") return;
+    
+    setLoadingRooms(true);
+    try {
+      const response = await getHotelRoomDetails(bookingCodeParam);
+      if (response?.HotelResult?.Rooms) {
+        // Filter to show only refundable rooms
+        const refundableRooms = response.HotelResult.Rooms.filter((room: any) => {
+          return room.IsRefundable === "true" || 
+                 room.IsRefundable === "1" || 
+                 room.IsRefundable === true ||
+                 (typeof room.IsRefundable === "string" && room.IsRefundable.toLowerCase() === "true");
+        });
+        setAvailableRooms(refundableRooms);
+        console.log('✅ Available rooms loaded:', refundableRooms.length);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching available rooms:', error);
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  // Fetch rooms when bookingCode is available
+  useEffect(() => {
+    if (bookingCode && !showRoomDetails) {
+      fetchAvailableRooms(bookingCode);
+    }
+  }, [bookingCode, showRoomDetails]);
+
+  // Get previous booking details for auto-fill
+  const getPreviousBookingDetails = async () => {
+    if (!user?.customer_id) return null;
+    
+    try {
+      const bookings = await getBookingFromCustomAPI(user.customer_id);
+      if (bookings && Array.isArray(bookings) && bookings.length > 0) {
+        const latestBooking = bookings[0];
+        return {
+          firstName: user.first_name || '',
+          lastName: user.last_name || '',
+          email: user.email || latestBooking.customer_email || '',
+          phone: user.phone || latestBooking.customer_phone || '',
+          address: latestBooking.hotel_address || '',
+          city: latestBooking.hotel_city || 'Dubai',
+          country: latestBooking.hotel_country || 'AE',
+        };
+      }
+    } catch (error) {
+      console.log('No previous bookings found for auto-fill');
+    }
+    return null;
+  };
+
+  // Express Checkout - Combines prebook + guest details + payment in one flow
+  const handleExpressCheckout = async () => {
+    if (!isAuthenticated) {
+      const loginEvent = new CustomEvent('openLoginDialog');
+      window.dispatchEvent(loginEvent);
+      return;
+    }
+
+    if (!selectedRoom || !bookingCode) {
+      toast({
+        title: "Room Selection Required",
+        description: "Please select a room before proceeding to express checkout.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setExpressCheckoutLoading(true);
+    try {
+      // Step 1: Prebook
+      console.log("🚀 Express Checkout: Starting prebook...");
+      const prebookResponse = await prebookHotel({
+        BookingCode: bookingCode,
+        PaymentMode: "Limit",
+      });
+
+      if (!prebookResponse.Status || prebookResponse.Status.Code !== "200") {
+        throw new Error(prebookResponse.Status?.Description || "Prebook failed");
+      }
+
+      // Step 2: Generate booking reference
+      const userData = JSON.parse(localStorage.getItem('userData') || 'null');
+      if (!userData?.customer_id) {
+        throw new Error("User data missing");
+      }
+
+      const { generateBookingReference } = await import('@/services/authApi');
+      const bookingRefResult = await generateBookingReference(userData.customer_id);
+      localStorage.setItem('booking_reference_id', bookingRefResult.booking_reference_id);
+
+      // Step 3: Check for saved guest details or previous bookings
+      const savedGuestDetails = localStorage.getItem('guest_details');
+      let guestDetails = null;
+
+      if (savedGuestDetails) {
+        try {
+          const parsed = JSON.parse(savedGuestDetails);
+          const savedBookingRefId = parsed.bookingData?.bookingReference?.booking_reference_id;
+          if (savedBookingRefId === bookingRefResult.booking_reference_id) {
+            guestDetails = parsed;
+          }
+        } catch (e) {
+          console.log('Could not parse saved guest details');
+        }
+      }
+
+      // If no saved details, try to auto-fill from previous bookings
+      if (!guestDetails) {
+        const previousDetails = await getPreviousBookingDetails();
+        if (previousDetails) {
+          // Auto-fill available, show modal with pre-filled data
+          setShowBookingModal(true);
+          setExpressCheckoutLoading(false);
+          return;
+        }
+      }
+
+      // Step 4: If guest details available, proceed directly to payment
+      if (guestDetails) {
+        await proceedToPayment(guestDetails, prebookResponse, bookingRefResult.booking_reference_id);
+      } else {
+        // Show booking modal to collect guest details
+        setShowBookingModal(true);
+      }
+    } catch (error) {
+      console.error("❌ Express Checkout error:", error);
+      toast({
+        title: "Express Checkout Failed",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setExpressCheckoutLoading(false);
+    }
+  };
+
+  // Proceed to payment after guest details are collected
+  const proceedToPayment = async (guestDetails: any, prebookResponse: any, bookingRefId: string) => {
+    try {
+      const { bookingForm, roomGuests, selectedRoom: savedRoom } = guestDetails;
+      const roomData = selectedRoom || savedRoom || prebookResponse.HotelResult?.Rooms;
+      const totalFare = parseFloat(roomData?.TotalFare || roomData?.Price || 0);
+      const currency = hotelDetails?.Currency || 'USD';
+
+      if (totalFare <= 0) {
+        throw new Error('Invalid room price');
+      }
+
+      const customerName = `${bookingForm.firstName || user?.first_name || 'Guest'} ${bookingForm.lastName || user?.last_name || 'User'}`.trim();
+      const customerEmail = bookingForm.email || user?.email || 'guest@example.com';
+      const customerPhone = bookingForm.phone || user?.phone || '1234567890';
+      const phoneWithoutCode = customerPhone.replace(/^\+?[\d\s-()]+/, '').replace(/\D/g, '');
+      const countryCode = bookingForm.countryCode || '971';
+
+      // Create PayORC order
+      const orderResponse = await createPayORCOrder({
+        customer: {
+          m_customer_id: user?.customer_id || 'guest_' + Date.now(),
+          name: customerName,
+          email: customerEmail,
+          mobile: phoneWithoutCode,
+          code: countryCode,
+        },
+        order: {
+          m_order_id: bookingRefId,
+          amount: totalFare.toFixed(2),
+          currency: currency,
+          description: `Hotel Booking - ${hotelDetails?.HotelName || 'Hotel'}`,
+          quantity: '1',
+        },
+        items: [{
+          title: `Hotel Booking - ${hotelDetails?.HotelName || 'Hotel'}`,
+          description: `Check-in: ${checkIn || 'N/A'}, Check-out: ${checkOut || 'N/A'}`,
+          quantity: 1,
+          unit_price: totalFare.toFixed(2),
+          discount_amount: '0.00',
+          reference_id: bookingRefId,
+          is_refundable: true,
+        }],
+        billing: {
+          address_line1: bookingForm.address || '123 Main Street',
+          address_line2: '',
+          city: bookingForm.city || 'Dubai',
+          province: bookingForm.city || 'Dubai',
+          country: bookingForm.country || 'AE',
+          pin: bookingForm.postalCode || '',
+        },
+        shipping: {
+          shipping_name: customerName,
+          shipping_email: customerEmail,
+          shipping_code: countryCode,
+          shipping_mobile: phoneWithoutCode,
+          address_line1: bookingForm.address || '123 Main Street',
+          city: bookingForm.city || 'Dubai',
+          province: bookingForm.city || 'Dubai',
+          country: bookingForm.country || 'AE',
+          pin: bookingForm.postalCode || '',
+          shipping_currency: currency,
+          shipping_amount: '0',
+        },
+        returnUrls: {
+          success: `${window.location.origin}/payment/success`,
+          cancel: `${window.location.origin}/payment/cancelled`,
+          failure: `${window.location.origin}/payment/failure`,
+        },
+      });
+
+      // Save data for payment success page
+      localStorage.setItem('payorc_order_id', orderResponse.order_id || '');
+      localStorage.setItem('pending_booking_data', JSON.stringify({
+        prebookData: prebookResponse,
+        hotelDetails,
+        checkIn,
+        checkOut
+      }));
+
+      // Show payment iframe
+      if (orderResponse.iframe_url) {
+        setPayORCIframeUrl(orderResponse.iframe_url);
+        setPayORCOrderId(orderResponse.order_id || '');
+        setShowPayORCIframe(true);
+      } else if (orderResponse.payment_url) {
+        window.location.href = orderResponse.payment_url;
+      }
+    } catch (error) {
+      console.error("❌ Payment error:", error);
+      toast({
+        title: "Payment Failed",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Watch for guest details being saved (from BookingModal)
+  useEffect(() => {
+    if (!showBookingModal && expressCheckoutLoading) {
+      // Modal was closed, check if guest details were saved
+      const savedGuestDetails = localStorage.getItem('guest_details');
+      const currentBookingRefId = localStorage.getItem('booking_reference_id');
+      
+      if (savedGuestDetails && currentBookingRefId) {
+        try {
+          const guestDetails = JSON.parse(savedGuestDetails);
+          const savedBookingRefId = guestDetails.bookingData?.bookingReference?.booking_reference_id;
+          
+          if (savedBookingRefId === currentBookingRefId) {
+            // Guest details saved, proceed to payment
+            (async () => {
+              try {
+                const prebookResponse = await prebookHotel({
+                  BookingCode: bookingCode!,
+                  PaymentMode: "Limit",
+                });
+
+                if (prebookResponse.Status?.Code === "200") {
+                  await proceedToPayment(guestDetails, prebookResponse, currentBookingRefId);
+                }
+              } catch (error) {
+                console.error("Error proceeding to payment:", error);
+                setExpressCheckoutLoading(false);
+              }
+            })();
+          }
+        } catch (error) {
+          console.error("Error parsing guest details:", error);
+          setExpressCheckoutLoading(false);
+        }
+      } else {
+        setExpressCheckoutLoading(false);
+      }
+    }
+  }, [showBookingModal, expressCheckoutLoading, bookingCode]);
+
+  // Handle PayORC iframe success
+  const handleIframeSuccess = (orderId: string, transactionId?: string) => {
+    setShowPayORCIframe(false);
+    navigate(`/payment/success?p_order_id=${orderId}${transactionId ? `&transaction_id=${transactionId}` : ''}`);
+  };
+
+  // Handle PayORC iframe failure
+  const handleIframeFailure = (error: string) => {
+    setShowPayORCIframe(false);
+    navigate(`/payment/failure?error=${encodeURIComponent(error)}`);
+  };
 
   const handleReserveClick = async () => {
     console.log("🔍 Debug - checkIn:", checkIn);
@@ -1311,18 +1638,22 @@ const HotelDetails = () => {
         const currency = urlSearchParams.get("currency") || "AED";
         let convertedPrebookResponse = prebookResponse;
         
-        if (prebookResponse.HotelResult && prebookResponse.HotelResult.Currency === "USD" && currency !== "USD") {
+        // Handle prebook response with type assertion since API may return additional fields
+        const prebookResponseAny = prebookResponse as any;
+        if (prebookResponseAny.HotelResult && prebookResponseAny.HotelResult.Currency === "USD" && currency !== "USD") {
           console.log(`💱 Converting prebook response prices from USD to ${currency}`);
           convertedPrebookResponse = {
             ...prebookResponse,
-            HotelResult: convertHotelPrices(prebookResponse.HotelResult, currency)
+            ...prebookResponseAny,
+            HotelResult: convertHotelPrices(prebookResponseAny.HotelResult, currency)
           };
         }
         
         // Add BookingCode to prebookData for easy access
         convertedPrebookResponse = {
           ...convertedPrebookResponse,
-          BookingCode: bookingCode // Ensure BookingCode is at top level
+          ...prebookResponseAny,
+          BookingId: bookingCode // Use BookingId instead of BookingCode as per PrebookResponse interface
         };
 
         // Navigate to booking page with hotel code and prebook data
@@ -1636,15 +1967,15 @@ const HotelDetails = () => {
               navigate(`/search?${searchParams.toString()}`);
             }}
           >
-            <ArrowLeft className="h-4 w-4" />
-            <span>{t?.back || "Back"} {t?.search || "to search"}</span>
-          </Button>
+              <ArrowLeft className="h-4 w-4" />
+              <span>{t?.back || "Back"} {t?.search || "to search"}</span>
+            </Button>
         </div>
 
         {/* Hotel Images */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="space-y-4">
-            <div className="aspect-[4/3] relative overflow-hidden rounded-xl group">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 items-stretch">
+          <div className="flex flex-col h-full space-y-4">
+            <div className="relative overflow-hidden rounded-xl group" style={{ flex: '0 0 65%', minHeight: '450px' }}>
               {/* Crossfade container */}
               <div className="relative w-full h-full">
                 {hotelDetails.Images && hotelDetails.Images.length > 0 ? (
@@ -1731,10 +2062,10 @@ const HotelDetails = () => {
               )}
             </div>
             
-            {/* Thumbnail Grid */}
-            {hotelDetails.Images && hotelDetails.Images.length > 1 && (
-              <div className="grid grid-cols-5 gap-2">
-                {hotelDetails.Images.slice(0, 5).map((image, index) => (
+            {/* Thumbnail Grid - Fixed at bottom - Show 7 images + 1 "more" card - Increased size */}
+            {hotelDetails.Images && hotelDetails.Images.length > 0 && (
+              <div className="grid grid-cols-4 gap-4 flex-shrink-0 mt-auto">
+                {hotelDetails.Images.slice(0, 7).map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
@@ -1751,12 +2082,27 @@ const HotelDetails = () => {
                     />
                   </button>
                 ))}
+                {hotelDetails.Images.length > 7 && (
+                  <button
+                    onClick={() => setShowImageGallery(true)}
+                    className="aspect-square rounded-lg overflow-hidden border-2 border-dashed border-gray-300 hover:border-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center bg-gray-50"
+                  >
+                    <div className="text-center p-2">
+                      <div className="text-2xl font-bold text-primary mb-1">
+                        +{hotelDetails.Images.length - 7}
+                      </div>
+                      <div className="text-xs text-muted-foreground font-medium">
+                        images more
+                      </div>
+                    </div>
+                  </button>
+                )}
               </div>
             )}
           </div>
 
           {/* Hotel Details */}
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col">
             {/* Header */}
             <div>
               <div className="flex items-start justify-between mb-2">
@@ -1804,156 +2150,97 @@ const HotelDetails = () => {
                 </div>
               </div>
 
-              {/* Key Amenities & Highlights Section - Prominent Display */}
-              {hotelDetails.HotelFacilities && hotelDetails.HotelFacilities.length > 0 && (
-                <div className="mt-8 space-y-6">
-                  {/* Key Amenities - Most Important */}
-                  <Card className="border-2 border-primary/20 shadow-lg">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                          <Star className="h-5 w-5 text-primary fill-primary" />
+              {/* Available Rooms Section - Horizontal Scrollable - Only show for API hotels - Moved to top */}
+              {!hotelDetails._isLocalData && bookingCode && (
+                <div id="available-rooms-section" className="w-full -mx-6 lg:-mx-8 mt-6">
+                  <div className="px-6 lg:px-8 mb-4">
+                    <h3 className="text-xl font-semibold">{t?.availableRooms || "Available Rooms"}</h3>
                         </div>
-                        <h2 className="text-2xl font-bold text-foreground">
-                          {t?.keyAmenities || "Key Amenities"}
-                        </h2>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {t?.keyAmenitiesDescription || "Essential features that make your stay comfortable and memorable"}
-                      </p>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {hotelDetails.HotelFacilities.slice(0, 8).map((amenity: string, index: number) => (
-                          <div
-                            key={`key-amenity-${index}`}
-                            className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 hover:border-primary/40 hover:shadow-md transition-all duration-200 group"
-                          >
-                            <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
-                              {getAmenityIcon(amenity)}
-                            </div>
-                            <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                              {amenity}
-                            </span>
+                  
+                  {loadingRooms ? (
+                    <div className="flex items-center justify-center py-8 px-6 lg:px-8">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      <span className="text-muted-foreground">Loading rooms...</span>
                           </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Highlighted Facilities - Premium Features */}
-                  {hotelDetails.HotelFacilities.length > 8 && (
-                    <Card className="border-2 border-blue-200 shadow-lg bg-gradient-to-br from-blue-50/50 to-white">
-                      <CardContent className="p-6">
-                        <div className="flex items-center gap-2 mb-4">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <Waves className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <h2 className="text-2xl font-bold text-foreground">
-                            {t?.highlightedFacilities || "Highlighted Facilities"}
-                          </h2>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          {t?.highlightedFacilitiesDescription || "Premium features and services that set this property apart"}
-                        </p>
-                        <div className="flex flex-wrap gap-3">
-                          {hotelDetails.HotelFacilities.slice(8, 16).map((facility: string, index: number) => (
-                            <Badge
-                              key={`facility-${index}`}
-                              variant="outline"
-                              className="px-4 py-2 text-sm font-semibold border-blue-300 bg-blue-50/50 hover:bg-blue-100 hover:border-blue-400 transition-all cursor-default"
+                  ) : availableRooms.length > 0 ? (
+                    <div className="overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+                      <div className="flex gap-4 pl-6 lg:pl-8" style={{ width: 'max-content', paddingRight: '24px' }}>
+                        {availableRooms.map((room, index) => {
+                          const isSelected = selectedRoom?.BookingCode === room.BookingCode;
+                          const currency = hotelDetails?.Currency || 'AED';
+                          const isRefundable = room.IsRefundable === "true" || 
+                                               room.IsRefundable === "1" || 
+                                               room.IsRefundable === true ||
+                                               (typeof room.IsRefundable === "string" && room.IsRefundable.toLowerCase() === "true");
+                          
+                          return (
+                            <Card 
+                              key={index}
+                              className={`min-w-[320px] max-w-[320px] flex-shrink-0 cursor-pointer transition-all hover:shadow-lg ${
+                                isSelected ? 'border-primary border-2 bg-primary/5' : ''
+                              }`}
+                              onClick={() => handleRoomSelect(room)}
                             >
-                              <div className="flex items-center gap-2">
-                                {getAmenityIcon(facility)}
-                                <span>{facility}</span>
+                              <CardContent className="p-4">
+                                <div className="space-y-3">
+                                  <div>
+                                    <h4 className="font-semibold text-lg">{room.Name}</h4>
+                                    <p className="text-sm text-muted-foreground">{room.MealType}</p>
                               </div>
-                            </Badge>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              )}
-
-              {/* Available Rooms Section - Only show for API hotels */}
-              {!hotelDetails._isLocalData && (
-                <div id="available-rooms-section" className="mt-8">
-                  <div className="space-y-4">
-                    {/* Show selected room summary if available */}
-                    {selectedRoom && !showRoomDetails && (
-                      <div className="border border-primary rounded-lg p-4 bg-primary/5">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-semibold">{selectedRoom.Name}</h4>
-                            <p className="text-sm text-muted-foreground">{selectedRoom.MealType}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              {/* Refundable badge hidden as per requirements */}
-                              {selectedRoom.WithTransfers === "true" && (
+                                  
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {isRefundable && (
+                                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                                    ✓ Refundable
+                                  </Badge>
+                                    )}
+                                    {room.WithTransfers === "true" && (
                                 <Badge variant="outline">With Transfers</Badge>
                               )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-primary">
-                              {getCurrencySymbol(selectedRoom.Currency || hotelDetails.Currency || 'AED')} {typeof selectedRoom.TotalFare === 'number' ? selectedRoom.TotalFare.toFixed(2) : parseFloat(selectedRoom.TotalFare).toFixed(2)}
-                            </div>
-                            <div className="text-sm text-muted-foreground">{t?.totalPrice || "total"}</div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Toggle button */}
-                    {!showRoomDetails && (
-                      <Button 
-                        onClick={() => handleViewRoomDetails(bookingCode || "no-booking-code")}
-                        variant="outline"
-                        className="w-96"
-                        disabled={searchingForBookingCode || !bookingCode}
-                      >
-                        {searchingForBookingCode ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Loading rooms...
-                          </>
-                        ) : !bookingCode ? (
-                          "Loading rooms..."
-                        ) : selectedRoom ? (
-                          "Change Room Selection"
-                        ) : (
-                          "Available Rooms"
-                        )}
-                      </Button>
-                    )}
-                                          
-                    {/* Inline room details */}
-                    {showRoomDetails && selectedBookingCode && (
-                      <div className="border rounded-lg bg-muted/5">
-                        <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-background z-10">
-                          <h4 className="font-semibold text-lg">{t?.selectRoom || "Select Your Room"}</h4>
+                                    {isSelected && (
+                                      <Badge variant="default" className="bg-primary">Selected</Badge>
+                                    )}
+                                  </div>
+                                  
+                                  {room.Inclusion && (
+                                    <p className="text-sm text-muted-foreground line-clamp-2">{room.Inclusion}</p>
+                                  )}
+                                  
+                                  <div className="flex justify-between items-end pt-2 border-t">
+                                    <div>
+                                      <div className="text-xl font-bold text-primary">
+                                        {getCurrencySymbol(currency)} {typeof room.TotalFare === 'number' ? room.TotalFare.toFixed(2) : parseFloat(room.TotalFare || '0').toFixed(2)}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">{t?.totalPrice || "total"}</div>
+                                    </div>
                           <Button 
-                            onClick={handleCloseRoomDetails}
-                            variant="ghost"
                             size="sm"
+                                      variant={isSelected ? "default" : "outline"}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRoomSelect(room);
+                                      }}
                           >
-                            {t?.close || "Close"}
+                                      {isSelected ? "Selected" : "Select"}
                           </Button>
                         </div>
-                        <div className="max-h-[500px] overflow-y-auto p-4">
-                          <HotelRoomDetails 
-                            bookingCode={selectedBookingCode} 
-                            onClose={handleCloseRoomDetails}
-                            onRoomSelect={handleRoomSelect}
-                            selectedRoom={selectedRoom}
-                          />
                         </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
                       </div>
-                    )}
                   </div>
+                  ) : !loadingRooms && bookingCode ? (
+                    <div className="text-center py-8 text-muted-foreground px-6 lg:px-8">
+                      <p>No refundable rooms available for the selected dates.</p>
+                    </div>
+                  ) : null}
                 </div>
               )}
 
-              {/* Reserve Button with Couple Video */}
-              <div className="flex items-center gap-6 mt-2">
+              {/* Reserve & Express Checkout Buttons with Couple Video */}
+              <div className="flex items-center gap-4 mt-6">
                 {hotelDetails._isLocalData ? (
                   <div className="w-96">
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1974,55 +2261,106 @@ const HotelDetails = () => {
                     </div>
                   </div>
                 ) : (
-                  <Button 
-                    size="lg" 
-                    className="w-96 bg-primary hover:bg-primary/90 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                    onClick={handleReserveClick}
-                    disabled={prebookLoading || (isAuthenticated && (!bookingCode || searchingForBookingCode))}
-                  >
-                    {searchingForBookingCode ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Loading booking options...
-                      </>
-                    ) : !isAuthenticated ? (
-                      "🔒 Login Required to Reserve"
-                    ) : prebookLoading ? (
-                      "Processing..."
-                    ) : !bookingCode ? (
-                      "Loading booking options..."
-                    ) : (
-                      t?.reserveNow || "Reserve"
-                    )}
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button 
+                      size="lg" 
+                      variant="outline"
+                      className="bg-white hover:bg-gray-50 text-primary border-2 border-primary shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={handleReserveClick}
+                      disabled={prebookLoading || (isAuthenticated && (!bookingCode || searchingForBookingCode))}
+                    >
+                      {searchingForBookingCode ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Loading...
+                        </>
+                      ) : !isAuthenticated ? (
+                        "🔒 Login to Reserve"
+                      ) : (
+                        <>
+                          {t?.reserveNow || "Reserve Now"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 )}
-                <video
-                  src="/couple-vacation.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  style={{ width: "200px", borderRadius: "8px" }}
-                />
               </div>
-
-              {!hotelDetails._isLocalData && !bookingCode && !searchingForBookingCode && (
-                <div className="text-center text-sm text-red-500 mt-2">
-                  <p>Booking code not available. Please try again.</p>
-                  <button 
-                    onClick={fetchBookingCode}
-                    className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  >
-                    Retry Fetch Booking Code
-                  </button>
-                </div>
-              )}
-
               <p className="text-center text-sm text-muted-foreground mt-2">
                 You won't be charged yet
               </p>
+
+              {/* Key Amenities & Highlights Section - Prominent Display */}
+              {hotelDetails.HotelFacilities && hotelDetails.HotelFacilities.length > 0 && (
+                <div className="mt-6 space-y-6">
+                  {/* Key Amenities - Most Important - Show only 3 */}
+                  <Card className="border-2 border-primary/20 shadow-lg">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Star className="h-5 w-5 text-primary fill-primary" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-foreground">
+                          {t?.keyAmenities || "Key Amenities"}
+                        </h2>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {t?.keyAmenitiesDescription || "Essential features that make your stay comfortable and memorable"}
+                      </p>
+                      <div className="grid grid-cols-3 gap-4 auto-rows-fr">
+                        {hotelDetails.HotelFacilities.slice(0, 3).map((amenity: string, index: number) => (
+                          <div
+                            key={`key-amenity-${index}`}
+                            className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 hover:border-primary/40 hover:shadow-md transition-all duration-200 group min-h-[80px] h-full"
+                          >
+                            <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                              {getAmenityIcon(amenity)}
+                </div>
+                            <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors break-words line-clamp-2">
+                              {amenity}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Highlighted Facilities - Premium Features - Show only 3 */}
+                  {hotelDetails.HotelFacilities.length > 3 && (
+                    <Card className="border-2 border-blue-200 shadow-lg bg-gradient-to-br from-blue-50/50 to-white">
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <Waves className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <h2 className="text-2xl font-bold text-foreground">
+                            {t?.highlightedFacilities || "Highlighted Facilities"}
+                          </h2>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          {t?.highlightedFacilitiesDescription || "Premium features and services that set this property apart"}
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          {hotelDetails.HotelFacilities.slice(3, 6).map((facility: string, index: number) => (
+                            <Badge
+                              key={`facility-${index}`}
+                              variant="outline"
+                              className="px-4 py-2 text-sm font-semibold border-blue-300 bg-blue-50/50 hover:bg-blue-100 hover:border-blue-400 transition-all cursor-default"
+                            >
+                              <div className="flex items-center gap-2">
+                                {getAmenityIcon(facility)}
+                                <span>{facility}</span>
+            </div>
+                            </Badge>
+                          ))}
+          </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
             </div>
           </div>
+
         </div>
 
         {/* Availability Section - Allow users to modify search - Hidden on mobile, shown in header */}
@@ -2059,157 +2397,122 @@ const HotelDetails = () => {
                   </CardContent>
                 </Card>
               )}
-              {/* About this place */}
+              {/* About this place - 4 Cards Layout */}
               {(sections['Amenities'] || sections['Dining'] || sections['Business Amenities'] || sections['Rooms']) && (
+                <div>
+                  <h3 className="font-semibold text-foreground mb-4 text-xl">
+                    About This Place
+            </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {sections['Amenities'] && (
                 <Card>
           <CardContent className="p-6">
-            <h3 className="font-semibold text-foreground mb-4 text-left">
-              About this place
-            </h3>
-                    <div className="space-y-4">
-                      {sections['Amenities'] && (
-                        <Collapsible
-                          open={openSections.amenities}
-                          onOpenChange={(open) => setOpenSections({ ...openSections, amenities: open })}
-                        >
-                          <CollapsibleTrigger className="flex items-center justify-start w-full hover:bg-gray-50 rounded-lg p-3 transition-colors gap-3">
-                            {openSections.amenities ? (
-                              <ChevronUp className="h-5 w-5 text-gray-500" />
-                            ) : (
-                              <ChevronDown className="h-5 w-5 text-gray-500" />
-                            )}
-                            <h4 className="font-semibold text-foreground">{t?.amenities || "Amenities"}</h4>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="pt-2 px-3 pb-3">
+                        <h4 className="font-semibold text-foreground mb-3 text-lg">{t?.amenities || "Amenities"}</h4>
                             <div 
                               className="text-muted-foreground leading-relaxed prose prose-sm max-w-none"
                               dangerouslySetInnerHTML={{ __html: sections['Amenities'] }}
                             />
-                          </CollapsibleContent>
-                        </Collapsible>
+                      </CardContent>
+                    </Card>
                       )}
                       {sections['Dining'] && (
-                        <Collapsible
-                          open={openSections.dining}
-                          onOpenChange={(open) => setOpenSections({ ...openSections, dining: open })}
-                        >
-                          <CollapsibleTrigger className="flex items-center justify-start w-full hover:bg-gray-50 rounded-lg p-3 transition-colors gap-3">
-                            {openSections.dining ? (
-                              <ChevronUp className="h-5 w-5 text-gray-500" />
-                            ) : (
-                              <ChevronDown className="h-5 w-5 text-gray-500" />
-                            )}
-                            <h4 className="font-semibold text-foreground">Dining</h4>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="pt-2 px-3 pb-3">
+                    <Card>
+                      <CardContent className="p-6">
+                        <h4 className="font-semibold text-foreground mb-3 text-lg">Dining</h4>
                             <div 
                               className="text-muted-foreground leading-relaxed prose prose-sm max-w-none"
                               dangerouslySetInnerHTML={{ __html: sections['Dining'] }}
                             />
-                          </CollapsibleContent>
-                        </Collapsible>
+                      </CardContent>
+                    </Card>
                       )}
                       {sections['Business Amenities'] && (
-                        <Collapsible
-                          open={openSections.businessAmenities}
-                          onOpenChange={(open) => setOpenSections({ ...openSections, businessAmenities: open })}
-                        >
-                          <CollapsibleTrigger className="flex items-center justify-start w-full hover:bg-gray-50 rounded-lg p-3 transition-colors gap-3">
-                            {openSections.businessAmenities ? (
-                              <ChevronUp className="h-5 w-5 text-gray-500" />
-                            ) : (
-                              <ChevronDown className="h-5 w-5 text-gray-500" />
-                            )}
-                            <h4 className="font-semibold text-foreground">Business Amenities</h4>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="pt-2 px-3 pb-3">
+                    <Card>
+                      <CardContent className="p-6">
+                        <h4 className="font-semibold text-foreground mb-3 text-lg">Business Amenities</h4>
                             <div 
                               className="text-muted-foreground leading-relaxed prose prose-sm max-w-none"
                               dangerouslySetInnerHTML={{ __html: sections['Business Amenities'] }}
                             />
-                          </CollapsibleContent>
-                        </Collapsible>
+                      </CardContent>
+                    </Card>
                       )}
                       {sections['Rooms'] && (
-                        <Collapsible
-                          open={openSections.rooms}
-                          onOpenChange={(open) => setOpenSections({ ...openSections, rooms: open })}
-                        >
-                          <CollapsibleTrigger className="flex items-center justify-start w-full hover:bg-gray-50 rounded-lg p-3 transition-colors gap-3">
-                            {openSections.rooms ? (
-                              <ChevronUp className="h-5 w-5 text-gray-500" />
-                            ) : (
-                              <ChevronDown className="h-5 w-5 text-gray-500" />
-                            )}
-                            <h4 className="font-semibold text-foreground">{t?.rooms || "Rooms"}</h4>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="pt-2 px-3 pb-3">
+                    <Card>
+                      <CardContent className="p-6">
+                        <h4 className="font-semibold text-foreground mb-3 text-lg">{t?.rooms || "Rooms"}</h4>
                             <div 
                               className="text-muted-foreground leading-relaxed prose prose-sm max-w-none"
                               dangerouslySetInnerHTML={{ __html: sections['Rooms'] }}
                             />
-                          </CollapsibleContent>
-                        </Collapsible>
-                      )}
-                    </div>
                   </CardContent>
                 </Card>
+                  )}
+                  </div>
+                </div>
               )}
 
-              {/* Attractions */}
-              {sections['Attractions'] && (
+              {/* Nearby Attractions */}
+              {sections['Attractions'] && (() => {
+                // Parse the attractions content into individual items
+                const attractionsHTML = sections['Attractions'];
+                // Split by <br> tags and newlines, then clean up
+                const items = attractionsHTML
+                  .replace(/<br\s*\/?>/gi, '\n')
+                  .split(/\n/)
+                  .map(item => {
+                    // Remove HTML tags and trim
+                    const text = item.replace(/<[^>]*>/g, '').trim();
+                    return text;
+                  })
+                  .filter(item => {
+                    // Filter out empty lines and header text
+                    return item && 
+                           item.length > 0 && 
+                           !item.match(/^(Distances are|The nearest|The preferred)/i);
+                  });
+                
+                // Split items into two columns
+                const midPoint = Math.ceil(items.length / 2);
+                const leftColumn = items.slice(0, midPoint);
+                const rightColumn = items.slice(midPoint);
+                
+                return (
                 <Card>
                   <CardContent className="p-6">
-                    <Collapsible
-                      open={openSections.attractions}
-                      onOpenChange={(open) => setOpenSections({ ...openSections, attractions: open })}
-                    >
-                      <CollapsibleTrigger className="flex items-center justify-start w-full hover:bg-gray-50 rounded-lg p-3 transition-colors -mx-3 -mt-3 mb-2 gap-3">
-                        {openSections.attractions ? (
-                          <ChevronUp className="h-5 w-5 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5 text-gray-500" />
-                        )}
-                        <h3 className="font-semibold text-foreground">
+                      <h4 className="font-semibold text-foreground mb-4 text-lg">
                           Nearby Attractions
-                        </h3>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div 
-                          className="text-muted-foreground leading-relaxed prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: sections['Attractions'] }}
-                        />
-                      </CollapsibleContent>
-                    </Collapsible>
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <ul className="list-disc list-inside space-y-2 text-muted-foreground text-sm">
+                          {leftColumn.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                        {rightColumn.length > 0 && (
+                          <ul className="list-disc list-inside space-y-2 text-muted-foreground text-sm">
+                            {rightColumn.map((item, index) => (
+                              <li key={index}>{item}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                   </CardContent>
                 </Card>
-              )}
+                );
+              })()}
 
               {/* Location */}
               {sections['Location'] && (
                 <Card>
                   <CardContent className="p-6">
-                    <Collapsible
-                      open={openSections.location}
-                      onOpenChange={(open) => setOpenSections({ ...openSections, location: open })}
-                    >
-                      <CollapsibleTrigger className="flex items-center justify-start w-full hover:bg-gray-50 rounded-lg p-3 transition-colors -mx-3 -mt-3 mb-2 gap-3">
-                        {openSections.location ? (
-                          <ChevronUp className="h-5 w-5 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5 text-gray-500" />
-                        )}
-                        <h3 className="font-semibold text-foreground">
+                    <h4 className="font-semibold text-foreground mb-3 text-lg">
                           Location
-                        </h3>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
+                    </h4>
                         <div 
                           className="text-muted-foreground leading-relaxed prose prose-sm max-w-none"
                           dangerouslySetInnerHTML={{ __html: sections['Location'] }}
                         />
-                      </CollapsibleContent>
-                    </Collapsible>
                   </CardContent>
                 </Card>
               )}
@@ -2218,9 +2521,9 @@ const HotelDetails = () => {
               {sections['Check In Instructions'] && (
                 <Card>
                   <CardContent className="p-6">
-                    <h3 className="font-semibold text-foreground mb-4">
+                    <h4 className="font-semibold text-foreground mb-3 text-lg">
                       Check In Information
-                    </h3>
+                    </h4>
                     <div 
                       className="text-muted-foreground leading-relaxed prose prose-sm max-w-none"
                       dangerouslySetInnerHTML={{ __html: sections['Check In Instructions'] }}
@@ -2230,59 +2533,61 @@ const HotelDetails = () => {
               )}
 
               {/* Fees */}
-              {sections['Fees'] && (
+              {sections['Fees'] && (() => {
+                // Parse the fees content into individual items
+                const feesHTML = sections['Fees'];
+                // Split by <br> tags and newlines, then clean up
+                const items = feesHTML
+                  .replace(/<br\s*\/?>/gi, '\n')
+                  .split(/\n/)
+                  .map(item => {
+                    // Remove HTML tags and trim
+                    const text = item.replace(/<[^>]*>/g, '').trim();
+                    return text;
+                  })
+                  .filter(item => item && item.length > 0);
+                
+                // Split items into two columns
+                const midPoint = Math.ceil(items.length / 2);
+                const leftColumn = items.slice(0, midPoint);
+                const rightColumn = items.slice(midPoint);
+                
+                return (
                 <Card>
                   <CardContent className="p-6">
-                    <Collapsible
-                      open={openSections.fees}
-                      onOpenChange={(open) => setOpenSections({ ...openSections, fees: open })}
-                    >
-                      <CollapsibleTrigger className="flex items-center justify-start w-full hover:bg-gray-50 rounded-lg p-3 transition-colors -mx-3 -mt-3 mb-2 gap-3">
-                        {openSections.fees ? (
-                          <ChevronUp className="h-5 w-5 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5 text-gray-500" />
-                        )}
-                        <h3 className="font-semibold text-foreground">
+                      <h4 className="font-semibold text-foreground mb-4 text-lg">
                           Fees & Charges
-                        </h3>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div 
-                          className="text-muted-foreground leading-relaxed prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: sections['Fees'] }}
-                        />
-                      </CollapsibleContent>
-                    </Collapsible>
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <ul className="list-disc list-inside space-y-2 text-muted-foreground text-sm">
+                          {leftColumn.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                        {rightColumn.length > 0 && (
+                          <ul className="list-disc list-inside space-y-2 text-muted-foreground text-sm">
+                            {rightColumn.map((item, index) => (
+                              <li key={index}>{item}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                   </CardContent>
                 </Card>
-              )}
+                );
+              })()}
 
               {/* Policies */}
               {sections['Policies'] && (
                 <Card>
                   <CardContent className="p-6">
-                    <Collapsible
-                      open={openSections.policies}
-                      onOpenChange={(open) => setOpenSections({ ...openSections, policies: open })}
-                    >
-                      <CollapsibleTrigger className="flex items-center justify-start w-full hover:bg-gray-50 rounded-lg p-3 transition-colors -mx-3 -mt-3 mb-2 gap-3">
-                        {openSections.policies ? (
-                          <ChevronUp className="h-5 w-5 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5 text-gray-500" />
-                        )}
-                        <h3 className="font-semibold text-foreground">
+                    <h4 className="font-semibold text-foreground mb-3 text-lg">
                           Policies
-                        </h3>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
+                    </h4>
                         <div 
                           className="text-muted-foreground leading-relaxed prose prose-sm max-w-none"
                           dangerouslySetInnerHTML={{ __html: sections['Policies'] }}
                         />
-                      </CollapsibleContent>
-                    </Collapsible>
                   </CardContent>
                 </Card>
               )}
@@ -2290,93 +2595,6 @@ const HotelDetails = () => {
           );
         })()}
 
-        {/* Comprehensive Hotel Information */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <h3 className="font-semibold text-foreground mb-6 text-xl">
-              Hotel Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Phone Number */}
-              {(hotelDetails as any).PhoneNumber && (
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Phone className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                    <p className="text-base font-semibold text-foreground">{(hotelDetails as any).PhoneNumber}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Fax Number */}
-              {(hotelDetails as any).FaxNumber && (
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Printer className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Fax</p>
-                    <p className="text-base font-semibold text-foreground">{(hotelDetails as any).FaxNumber}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Check-In Time */}
-              {(hotelDetails as any).CheckInTime && (
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Calendar className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Check-In</p>
-                    <p className="text-base font-semibold text-foreground">{(hotelDetails as any).CheckInTime || "Contact hotel"}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Check-Out Time */}
-              {(hotelDetails as any).CheckOutTime && (
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Calendar className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Check-Out</p>
-                    <p className="text-base font-semibold text-foreground">{(hotelDetails as any).CheckOutTime || "Contact hotel"}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* City ID */}
-              {(hotelDetails as any).CityId && (
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <MapPin className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">City Code</p>
-                    <p className="text-base font-semibold text-foreground">{(hotelDetails as any).CityId}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Country Code */}
-              {(hotelDetails as any).CountryCode && (
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <MapPin className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Country Code</p>
-                    <p className="text-base font-semibold text-foreground">{(hotelDetails as any).CountryCode}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Location Map */}
         <Card className="mb-8">
@@ -2429,6 +2647,79 @@ const HotelDetails = () => {
       </main>
       <Footer />
       <ChatBot />
+      
+      {/* Booking Modal for Express Checkout */}
+      {showBookingModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
+            <BookingModal
+              hotelDetails={hotelDetails}
+              selectedRoom={selectedRoom}
+              rooms={parseInt(rooms || "1")}
+              guests={parseInt(guests || "2")}
+              adults={adults}
+              children={children}
+              childrenAges={childrenAges}
+              roomGuestsDistribution={roomGuests}
+              onClose={() => {
+                setShowBookingModal(false);
+                // Don't reset expressCheckoutLoading here - let useEffect handle it
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* PayORC Payment Iframe */}
+      {showPayORCIframe && payORCIframeUrl && (
+        <PayORCIframe
+          iframeUrl={payORCIframeUrl}
+          orderId={payORCOrderId}
+          isOpen={showPayORCIframe}
+          onClose={() => setShowPayORCIframe(false)}
+          onSuccess={handleIframeSuccess}
+          onFailure={handleIframeFailure}
+          onCancel={() => {
+            setShowPayORCIframe(false);
+            toast({
+              title: "Payment Cancelled",
+              description: "Your payment was cancelled. You can try again anytime.",
+            });
+          }}
+        />
+      )}
+
+      {/* Image Gallery Modal */}
+      <Dialog open={showImageGallery} onOpenChange={setShowImageGallery}>
+        <DialogContent className="max-w-7xl w-full h-[90vh] p-0">
+          <DialogHeader className="px-6 pt-6 pb-4">
+            <DialogTitle className="text-2xl font-bold">
+              {hotelDetails?.HotelName} - All Images ({hotelDetails?.Images?.length || 0})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto px-6 pb-6" style={{ maxHeight: 'calc(90vh - 100px)' }}>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {hotelDetails?.Images?.map((image: string, index: number) => (
+                <div
+                  key={index}
+                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-primary transition-all cursor-pointer group"
+                  onClick={() => {
+                    setCurrentImageIndex(index);
+                    setShowImageGallery(false);
+                  }}
+                >
+                  <img
+                    src={image}
+                    alt={`${hotelDetails?.HotelName} - Image ${index + 1}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

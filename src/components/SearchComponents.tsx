@@ -158,6 +158,12 @@ export const DatePicker = ({
           onSelect={(date) => {
             if (type === "checkin") {
               onStartDateChange(date);
+              // Automatically set checkout to next day when checkin is selected
+              if (date) {
+                const nextDay = new Date(date);
+                nextDay.setDate(nextDay.getDate() + 1);
+                onEndDateChange(nextDay);
+              }
             } else {
               onEndDateChange(date);
             }

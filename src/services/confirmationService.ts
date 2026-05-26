@@ -1,6 +1,6 @@
 // Confirmation email service
 
-const CONFIRMATION_API_URL = '/api/confirmation/send'; // Use proxy server
+const CONFIRMATION_API_URL = 'http://hotelrbs.us-east-1.elasticbeanstalk.com/confirmation/send'; // Custom confirmation email API
 
 export interface ConfirmationRequest {
   customer_id?: string;
@@ -27,13 +27,16 @@ export const sendConfirmationEmail = async (
     console.log('📧 Sending confirmation email...');
     console.log('📋 Request data:', { customerIdOrClientRef, confirmationNumber, email, isClientReference, bookingReferenceId });
     
+    // Build request body matching your custom API format
+    // Based on Postman: API requires customer_id and confirmation_number
     const requestBody: ConfirmationRequest = {
       ...(isClientReference 
         ? { client_reference_id: customerIdOrClientRef } 
         : { customer_id: customerIdOrClientRef }),
       confirmation_number: confirmationNumber,
-      booking_reference_id: bookingReferenceId,
-      email: email
+      // Optional fields (include if provided)
+      ...(bookingReferenceId && { booking_reference_id: bookingReferenceId }),
+      ...(email && { email: email })
     };
     
     const response = await fetch(CONFIRMATION_API_URL, {

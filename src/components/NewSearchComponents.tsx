@@ -143,9 +143,11 @@ export const DatePicker = ({
   const handleDateSelect = (date: Date | undefined) => {
     if (type === "checkin") {
       onStartDateChange(date);
-      // If start date is after end date, reset end date
-      if (date && endDate && date > endDate) {
-        onEndDateChange(undefined);
+      // Automatically set checkout to next day when checkin is selected
+      if (date) {
+        const nextDay = new Date(date);
+        nextDay.setDate(nextDay.getDate() + 1);
+        onEndDateChange(nextDay);
       }
     } else {
       onEndDateChange(date);

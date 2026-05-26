@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 
 // Load environment variables
 dotenv.config();
+const hotelCodeCache = new Map();
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
 const app = express();
 const PORT = process.env.PROXY_SERVER_PORT || 3001;
@@ -11,10 +13,10 @@ const PORT = process.env.PROXY_SERVER_PORT || 3001;
 // Enable CORS for all routes with more permissive settings
 app.use(
   cors({
-    origin: "*",
-    credentials: true,
+    origin: true, // allow all origins in dev
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+    credentials: false,
   })
 );
 app.use(express.json());
@@ -73,7 +75,14 @@ app.post("/api/hotel-search", async (req, res) => {
     const data = await response.json();
     console.log("✅ LIVE API response received");
     console.log("📊 Response Status Code:", data?.Status?.Code);
-    console.log("📊 Total Hotels in Response:", Array.isArray(data?.HotelResult) ? data.HotelResult.length : (data?.HotelResult ? 1 : 0));
+    console.log(
+      "📊 Total Hotels in Response:",
+      Array.isArray(data?.HotelResult)
+        ? data.HotelResult.length
+        : data?.HotelResult
+        ? 1
+        : 0
+    );
     console.log("✅ Full response:", JSON.stringify(data, null, 2));
 
     // Debug: Log the first hotel's rooms structure
@@ -86,7 +95,9 @@ app.post("/api/hotel-search", async (req, res) => {
 
     // Handle null response (no hotels found) - return empty result from LIVE API
     if (data === null || data === undefined) {
-      console.log("📭 No hotels found for this search - returning empty result from LIVE API");
+      console.log(
+        "📭 No hotels found for this search - returning empty result from LIVE API"
+      );
       return res.json({
         Status: {
           Code: "204",
@@ -107,42 +118,47 @@ app.post("/api/hotel-search", async (req, res) => {
 });
 
 // Hotel Room endpoint
-app.post('/api/hotel-room', async (req, res) => {
+app.post("/api/hotel-room", async (req, res) => {
   try {
-    console.log('🏨 Proxying hotel room request to Travzilla API...');
-    console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
-    
-    const apiUrl = process.env.API_BASE_URL || 'http://pfort.travelapihost.com/HotelServiceRest';
+    console.log("🏨 Proxying hotel room request to Travzilla API...");
+    console.log("📋 Request body:", JSON.stringify(req.body, null, 2));
+
+    const apiUrl =
+      process.env.API_BASE_URL ||
+      "http://pfort.travelapihost.com/HotelServiceRest";
     const username = process.env.API_USERNAME || "UHM|Hotel_RBS";
     const password = process.env.API_PASSWORD || "zjpUPOjhAGf47Uso";
-    
+
     const response = await fetch(`${apiUrl}/HotelRoom`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64'),
-        'Accept': 'application/json',
+        "Content-Type": "application/json",
+        Authorization:
+          "Basic " + Buffer.from(`${username}:${password}`).toString("base64"),
+        Accept: "application/json",
       },
       body: JSON.stringify(req.body),
     });
 
-    console.log('📥 Travzilla hotel room response status:', response.status);
-    
+    console.log("📥 Travzilla hotel room response status:", response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Travzilla hotel room API error:', errorText);
-      throw new Error(`Travzilla Hotel Room API error: ${response.status} ${response.statusText}`);
+      console.error("❌ Travzilla hotel room API error:", errorText);
+      throw new Error(
+        `Travzilla Hotel Room API error: ${response.status} ${response.statusText}`
+      );
     }
 
     const data = await response.json();
-    console.log('✅ Travzilla hotel room response:', data);
-    
+    console.log("✅ Travzilla hotel room response:", data);
+
     res.json(data);
   } catch (error) {
-    console.error('❌ Hotel room proxy error:', error);
-    res.status(500).json({ 
-      error: 'Hotel room proxy error', 
-      message: error.message 
+    console.error("❌ Hotel room proxy error:", error);
+    res.status(500).json({
+      error: "Hotel room proxy error",
+      message: error.message,
     });
   }
 });
@@ -171,11 +187,14 @@ app.post("/api/hotel-details", async (req, res) => {
     const language = req.body.Language || req.body.language || "en";
     const apiRequestBody = {
       Hotelcodes: String(hotelCode), // API expects plural "Hotelcodes"
-      Language: language
+      Language: language,
     };
 
     console.log("🔗 Calling Travzilla API:", `${apiUrl}/Hoteldetails`);
-    console.log("📋 API Request body:", JSON.stringify(apiRequestBody, null, 2));
+    console.log(
+      "📋 API Request body:",
+      JSON.stringify(apiRequestBody, null, 2)
+    );
 
     const response = await fetch(`${apiUrl}/Hoteldetails`, {
       method: "POST",
@@ -370,48 +389,142 @@ app.post("/api/CityList", async (req, res) => {
 });
 
 // HotelCodeList endpoint
-app.post("/api/HotelCodeList", async (req, res) => {
-  try {
-    console.log("🏨 Fetching hotel code list from Travzilla API...");
-    console.log("📋 Request body:", JSON.stringify(req.body, null, 2));
+// Hotel Code List (PFORT - hotelcodelist)
 
+app.post("/api/hotelcodelist", async (req, res) => {
+  try {
+    console.log("🏨 /api/hotelcodelist called");
+    console.log("📥 Request body:", req.body);
+
+    const { CountryCode, CityCode } = req.body;
+
+    // -----------------------------
+    // 1️⃣ Validate input
+    // -----------------------------
+    if (!CountryCode || !CityCode) {
+      return res.status(400).json({
+        error: "CountryCode and CityCode are required",
+      });
+    }
+
+    // -----------------------------
+    // 2️⃣ Cache key
+    // -----------------------------
+    const cacheKey = `${CountryCode}_${CityCode}`;
+
+    // -----------------------------
+    // 3️⃣ Cache HIT (with TTL)
+    // -----------------------------
+    const cached = hotelCodeCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      console.log("⚡ Cache HIT:", cacheKey);
+      return res.status(200).json(cached.data);
+    }
+
+    console.log("🐢 Cache MISS:", cacheKey);
+
+    // -----------------------------
+    // 4️⃣ Prepare PFORT request
+    // -----------------------------
     const apiUrl =
       process.env.API_BASE_URL ||
       "http://pfort.travelapihost.com/HotelServiceRest";
+
     const username = process.env.API_USERNAME || "UHM|Hotel_RBS";
     const password = process.env.API_PASSWORD || "zjpUPOjhAGf47Uso";
 
-    const response = await fetch(`${apiUrl}/HotelCodeList`, {
+    const authHeader =
+      "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
+
+    const startTime = Date.now();
+
+    // -----------------------------
+    // 5️⃣ Call PFORT API
+    // -----------------------------
+    const response = await fetch(`${apiUrl}/hotelcodelist`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization:
-          "Basic " + Buffer.from(`${username}:${password}`).toString("base64"),
         Accept: "application/json",
+        Authorization: authHeader,
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify({
+        CountryCode: String(CountryCode),
+        CityCode: String(CityCode),
+      }),
     });
 
-    console.log("📥 HotelCodeList response status:", response.status);
+    const rawText = await response.text();
+
+    console.log("⏱ PFORT time:", Date.now() - startTime, "ms");
 
     if (!response.ok) {
-      throw new Error(
-        `Travzilla HotelCodeList API error: ${response.status} ${response.statusText}`
-      );
+      return res.status(502).json({
+        error: "PFORT hotelcodelist HTTP failure",
+        status: response.status,
+        raw: rawText,
+      });
     }
 
-    const data = await response.json();
-    console.log("✅ HotelCodeList response:", data);
+    // -----------------------------
+    // 6️⃣ Parse response
+    // -----------------------------
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      return res.status(502).json({
+        error: "Invalid JSON from PFORT",
+        raw: rawText,
+      });
+    }
 
-    res.json(data);
+    const hotels = Array.isArray(data?.HotelList) ? data.HotelList : [];
+
+    console.log("✅ PFORT hotelcodelist success, hotels:", hotels.length);
+
+    // -----------------------------
+    // 7️⃣ Reduce payload size
+    // -----------------------------
+    const lightHotels = hotels.map(h => ({
+      HotelCode: h.HotelCode,
+      HotelName: h.HotelName,
+    }));
+
+    // -----------------------------
+    // 8️⃣ Normalized response
+    // -----------------------------
+    const responseData = {
+      Status: {
+        Code: "200",
+        Message: "Success",
+      },
+      HotelList: lightHotels,
+    };
+
+    // -----------------------------
+    // 9️⃣ Save to cache with TTL
+    // -----------------------------
+    hotelCodeCache.set(cacheKey, {
+      data: responseData,
+      expires: Date.now() + CACHE_TTL,
+    });
+
+    return res.status(200).json(responseData);
+
   } catch (error) {
-    console.error("❌ HotelCodeList proxy error:", error);
-    res.status(500).json({
-      error: "HotelCodeList proxy error",
+    console.error("❌ hotelcodelist backend error:", error);
+    return res.status(500).json({
+      error: "Internal Server Error",
       message: error.message,
     });
   }
 });
+
+
+
+
+
 
 // Customer lookup endpoint
 app.get("/api/customer/:email", async (req, res) => {
@@ -507,7 +620,9 @@ app.get("/api/bookings/custom", async (req, res) => {
     }
 
     // Use GET request with customer_id parameter
-    const url = `${bookingApiUrl}/bookings/get?customer_id=${encodeURIComponent(customerId)}`;
+    const url = `${bookingApiUrl}/bookings/get?customer_id=${encodeURIComponent(
+      customerId
+    )}`;
     console.log("🌐 Calling backend URL:", url);
 
     const response = await fetch(url, {
@@ -528,7 +643,10 @@ app.get("/api/bookings/custom", async (req, res) => {
     }
 
     const data = await response.json();
-    console.log("✅ Custom booking lookup response:", JSON.stringify(data, null, 2));
+    console.log(
+      "✅ Custom booking lookup response:",
+      JSON.stringify(data, null, 2)
+    );
 
     res.json(data);
   } catch (error) {
@@ -567,7 +685,10 @@ app.post("/api/bookings/add", async (req, res) => {
     }
 
     const data = await response.json();
-    console.log("✅ Booking added successfully:", JSON.stringify(data, null, 2));
+    console.log(
+      "✅ Booking added successfully:",
+      JSON.stringify(data, null, 2)
+    );
 
     res.json(data);
   } catch (error) {
@@ -606,7 +727,10 @@ app.post("/api/bookings/cancel", async (req, res) => {
     }
 
     const data = await response.json();
-    console.log("✅ Booking cancelled successfully:", JSON.stringify(data, null, 2));
+    console.log(
+      "✅ Booking cancelled successfully:",
+      JSON.stringify(data, null, 2)
+    );
 
     res.json(data);
   } catch (error) {
@@ -627,7 +751,10 @@ app.post("/api/hotel-book", async (req, res) => {
     console.log("📋 BookingCode:", req.body?.BookingCode);
     console.log("📋 BookingType:", req.body?.BookingType);
     console.log("📋 PaymentMode:", req.body?.PaymentMode);
-    console.log("📋 CustomerDetails:", JSON.stringify(req.body?.CustomerDetails, null, 2));
+    console.log(
+      "📋 CustomerDetails:",
+      JSON.stringify(req.body?.CustomerDetails, null, 2)
+    );
     console.log("📋 CustomerDetails count:", req.body?.CustomerDetails?.length);
     console.log("📋 TotalFare:", req.body?.TotalFare);
     console.log("📋 EmailId:", req.body?.EmailId);
@@ -646,7 +773,7 @@ app.post("/api/hotel-book", async (req, res) => {
 
     const authHeader =
       "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
-    
+
     // Validate required fields
     if (!req.body.BookingCode) {
       console.error("❌ Missing BookingCode");
@@ -655,7 +782,7 @@ app.post("/api/hotel-book", async (req, res) => {
         message: "BookingCode is required",
       });
     }
-    
+
     if (!req.body.PaymentMode) {
       console.error("❌ Missing PaymentMode");
       return res.status(400).json({
@@ -663,25 +790,29 @@ app.post("/api/hotel-book", async (req, res) => {
         message: "PaymentMode is required",
       });
     }
-    
-    if (!req.body.CustomerDetails || !Array.isArray(req.body.CustomerDetails) || req.body.CustomerDetails.length === 0) {
+
+    if (
+      !req.body.CustomerDetails ||
+      !Array.isArray(req.body.CustomerDetails) ||
+      req.body.CustomerDetails.length === 0
+    ) {
       console.error("❌ Missing or invalid CustomerDetails");
       return res.status(400).json({
         error: "Bad Request",
         message: "CustomerDetails array is required and must not be empty",
       });
     }
-    
+
     // Ensure PaymentMode is valid (Limit or Credit)
-    const validPaymentModes = ['Limit', 'Credit'];
+    const validPaymentModes = ["Limit", "Credit"];
     if (!validPaymentModes.includes(req.body.PaymentMode)) {
       console.error("❌ Invalid PaymentMode:", req.body.PaymentMode);
       return res.status(400).json({
         error: "Bad Request",
-        message: `PaymentMode must be one of: ${validPaymentModes.join(', ')}`,
+        message: `PaymentMode must be one of: ${validPaymentModes.join(", ")}`,
       });
     }
-    
+
     // Validate required fields first
     if (!req.body.PaymentMode) {
       console.error("❌ Missing PaymentMode");
@@ -690,17 +821,17 @@ app.post("/api/hotel-book", async (req, res) => {
         message: "PaymentMode is required",
       });
     }
-    
+
     // Build request body matching Postman example order exactly:
     // CustomerDetails, BookingType, ClientReferenceId, BookingReferenceId, PaymentMode, GuestNationality, TotalFare, EmailId, PhoneNumber
     // Note: Postman example does NOT include BookingCode, but API may still need it
-    
+
     // Use object with specific property order to match Postman
     const requestBody = {
       // CustomerDetails first (as shown in Postman)
       CustomerDetails: req.body.CustomerDetails,
       // Then BookingType
-      BookingType: req.body.BookingType || 'Voucher',
+      BookingType: req.body.BookingType || "Voucher",
       // Then ClientReferenceId
       ClientReferenceId: req.body.ClientReferenceId,
       // Then BookingReferenceId
@@ -708,29 +839,32 @@ app.post("/api/hotel-book", async (req, res) => {
       // PaymentMode comes AFTER BookingReferenceId
       PaymentMode: req.body.PaymentMode,
       // Then GuestNationality
-      GuestNationality: req.body.GuestNationality || 'AE',
+      GuestNationality: req.body.GuestNationality || "AE",
       // Then TotalFare
       TotalFare: req.body.TotalFare,
       // Then EmailId
       EmailId: req.body.EmailId,
       // Finally PhoneNumber
-      PhoneNumber: req.body.PhoneNumber
+      PhoneNumber: req.body.PhoneNumber,
     };
-    
+
     // Add BookingCode if provided (Postman doesn't show it, but API likely needs it)
     if (req.body.BookingCode) {
       // Prepend BookingCode to the object (will be first in JSON)
       const requestBodyWithCode = {
         BookingCode: req.body.BookingCode,
-        ...requestBody
+        ...requestBody,
       };
       console.log("📋 Including BookingCode in request");
       console.log("📤 Sending request to LIVE API...");
-      console.log("📤 Request body keys (in order):", Object.keys(requestBodyWithCode));
+      console.log(
+        "📤 Request body keys (in order):",
+        Object.keys(requestBodyWithCode)
+      );
       console.log("📤 PaymentMode value:", requestBodyWithCode.PaymentMode);
       const requestBodyString = JSON.stringify(requestBodyWithCode);
       console.log("📤 Final request body:", requestBodyString);
-      
+
       var finalRequestBody = requestBodyString;
     } else {
       console.log("⚠️ No BookingCode provided");
@@ -739,10 +873,10 @@ app.post("/api/hotel-book", async (req, res) => {
       console.log("📤 PaymentMode value:", requestBody.PaymentMode);
       const requestBodyString = JSON.stringify(requestBody);
       console.log("📤 Final request body:", requestBodyString);
-      
+
       var finalRequestBody = requestBodyString;
     }
-    
+
     const response = await fetch(`${apiUrl}/HotelBook`, {
       method: "POST",
       headers: {
@@ -772,7 +906,9 @@ app.post("/api/hotel-book", async (req, res) => {
     } catch (parseError) {
       console.error("❌ Failed to parse response as JSON:", parseError);
       console.error("❌ Response text:", responseText);
-      throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}`);
+      throw new Error(
+        `Invalid JSON response: ${responseText.substring(0, 200)}`
+      );
     }
 
     console.log("✅ Booking Status Code:", data?.Status?.Code);
@@ -887,13 +1023,16 @@ app.put("/api/customer/:customerId", async (req, res) => {
 
     const customerApiUrl = "https://api.hotelrbs.com";
 
-    const response = await fetch(`${customerApiUrl}/customer/${req.params.customerId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(req.body),
-    });
+    const response = await fetch(
+      `${customerApiUrl}/customer/${req.params.customerId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(req.body),
+      }
+    );
 
     console.log("📥 Customer update response status:", response.status);
 
@@ -1133,15 +1272,23 @@ app.post("/api/booking-details-by-date", async (req, res) => {
     }
 
     const data = await response.json();
-    console.log("✅ Travzilla booking details response:", JSON.stringify(data, null, 2));
+    console.log(
+      "✅ Travzilla booking details response:",
+      JSON.stringify(data, null, 2)
+    );
     console.log("📊 Response structure analysis:");
     console.log("   - Response keys:", Object.keys(data));
     console.log("   - Status:", data.Status);
     console.log("   - Has Bookings array?", Array.isArray(data.Bookings));
-    console.log("   - Has BookingDetails array?", Array.isArray(data.BookingDetails));
+    console.log(
+      "   - Has BookingDetails array?",
+      Array.isArray(data.BookingDetails)
+    );
     console.log("   - Has Data array?", Array.isArray(data.Data));
-    if (data.Bookings) console.log("   - Bookings count:", data.Bookings.length);
-    if (data.BookingDetails) console.log("   - BookingDetails count:", data.BookingDetails.length);
+    if (data.Bookings)
+      console.log("   - Bookings count:", data.Bookings.length);
+    if (data.BookingDetails)
+      console.log("   - BookingDetails count:", data.BookingDetails.length);
     if (data.Data) console.log("   - Data count:", data.Data.length);
 
     res.json(data);
@@ -1193,13 +1340,19 @@ app.post("/api/booking-detail", async (req, res) => {
     }
 
     const data = await response.json();
-    console.log("✅ Travzilla booking detail response:", JSON.stringify(data, null, 2));
+    console.log(
+      "✅ Travzilla booking detail response:",
+      JSON.stringify(data, null, 2)
+    );
     console.log("📊 Booking detail structure:");
     console.log("   - Response keys:", Object.keys(data));
     console.log("   - Status:", data.Status);
     if (data.BookingDetail) {
       console.log("   - Has booking detail:", true);
-      console.log("   - Confirmation Number:", data.BookingDetail.ConfirmationNo);
+      console.log(
+        "   - Confirmation Number:",
+        data.BookingDetail.ConfirmationNo
+      );
       console.log("   - Booking Status:", data.BookingDetail.BookingStatus);
     }
 
@@ -1214,7 +1367,7 @@ app.post("/api/booking-detail", async (req, res) => {
 });
 
 // Wishlist endpoints - Forward to remote hotel API backend
-const REMOTE_BACKEND_URL = 'https://api.hotelrbs.com';
+const REMOTE_BACKEND_URL = "https://api.hotelrbs.com";
 
 // Add to wishlist endpoint
 app.post("/api/wishlist/add", async (req, res) => {
@@ -1289,7 +1442,7 @@ app.get("/api/wishlist/:customer_id", async (req, res) => {
       transformedData = {
         success: true,
         data: data,
-        count: data.length
+        count: data.length,
       };
     } else if (data.success !== undefined) {
       // Backend already returns in correct format
@@ -1299,7 +1452,7 @@ app.get("/api/wishlist/:customer_id", async (req, res) => {
       transformedData = {
         success: true,
         data: Array.isArray(data) ? data : [data],
-        count: Array.isArray(data) ? data.length : 1
+        count: Array.isArray(data) ? data.length : 1,
       };
     }
 
@@ -1334,17 +1487,21 @@ app.delete("/api/wishlist/remove", async (req, res) => {
     // Try to parse as JSON, fallback to text if it fails
     let data;
     const contentType = response.headers.get("content-type");
-    
+
     try {
       if (contentType && contentType.includes("application/json")) {
         data = await response.json();
       } else {
         const text = await response.text();
-        console.log("⚠️ Non-JSON response from remote API:", text.substring(0, 200));
+        console.log(
+          "⚠️ Non-JSON response from remote API:",
+          text.substring(0, 200)
+        );
         data = {
           success: false,
-          message: "Remote API endpoint not found or not configured for DELETE method",
-          status: response.status
+          message:
+            "Remote API endpoint not found or not configured for DELETE method",
+          status: response.status,
         };
       }
     } catch (parseError) {
@@ -1352,15 +1509,19 @@ app.delete("/api/wishlist/remove", async (req, res) => {
       data = {
         success: false,
         message: "Invalid response from remote API",
-        status: response.status
+        status: response.status,
       };
     }
-    
+
     // Pass through the response (both 200 OK and 404 Not Found are valid for JSON responses)
     if (response.ok) {
       console.log("✅ Hotel removed from wishlist successfully:", data);
       res.status(response.status).json(data);
-    } else if (response.status === 404 && contentType && contentType.includes("application/json")) {
+    } else if (
+      response.status === 404 &&
+      contentType &&
+      contentType.includes("application/json")
+    ) {
       console.log("ℹ️ Hotel not found in wishlist:", data);
       res.status(response.status).json(data);
     } else {
@@ -1377,7 +1538,8 @@ app.delete("/api/wishlist/remove", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+
+app.listen(PORT, "127.0.0.1", () => {
   console.log(`🚀 Proxy server running on http://localhost:${PORT}`);
   console.log(`📡 Proxying Travzilla API calls...`);
   console.log(`👤 Proxying Customer API calls...`);

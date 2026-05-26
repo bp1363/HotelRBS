@@ -70,6 +70,12 @@ const BookingDetailsModal = ({ isOpen, onClose, onConfirm, hotelName }: BookingD
   // Handle check-in date selection and close calendar
   const handleCheckInSelect = (date: Date | undefined) => {
     setCheckIn(date);
+    // Automatically set checkout to next day when checkin is selected
+    if (date) {
+      const nextDay = new Date(date);
+      nextDay.setDate(nextDay.getDate() + 1);
+      setCheckOut(nextDay);
+    }
     setIsCheckInCalendarOpen(false);
   };
 

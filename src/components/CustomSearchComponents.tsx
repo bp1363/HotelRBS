@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -123,14 +123,38 @@ export const DestinationPicker = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, hasUserInteracted, isOpen, currentDestinationIndex]);
 
-  // Load all cities on component mount
+  // Sync citySearchTerm with value prop when it changes (if dropdown is open)
   useEffect(() => {
-    if (isOpen && allCities.length === 0) {
+    if (isOpen && value) {
+      // Extract just the city name if value contains comma (e.g., "Dubai, UAE" -> "Dubai")
+      const cityNameOnly = value.split(',')[0].trim();
+      // Only update if different to avoid unnecessary re-renders
+      if (cityNameOnly !== citySearchTerm) {
+        setCitySearchTerm(cityNameOnly);
+      }
+    }
+  }, [isOpen, value]);
+
+  // Reset citySearchTerm when dropdown closes
+  useEffect(() => {
+    if (!isOpen) {
+      setCitySearchTerm('');
+    }
+  }, [isOpen]);
+
+  // Load all cities - trigger when field is clicked/opened or when user starts typing
+  useEffect(() => {
+    if (isOpen && allCities.length === 0 && !loadingCities) {
       loadAllCities();
     }
   }, [isOpen]);
 
   const loadAllCities = async () => {
+    // Prevent duplicate loading
+    if (loadingCities || allCities.length > 0) {
+      return;
+    }
+    
     try {
       setLoadingCities(true);
       console.log('🏙️ Loading all cities from custom API...');
@@ -176,36 +200,97 @@ export const DestinationPicker = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    setInputValue(newValue);
+    
+    console.log('🔍 Input changed:', { newValue, currentCitySearchTerm: citySearchTerm });
+    
+    // Always update citySearchTerm immediately for real-time filtering
     setCitySearchTerm(newValue);
+    
+    // Also update inputValue and call onChange
+    setInputValue(newValue);
     onChange(newValue);
     setHasUserInteracted(true);
     setIsTyping(false);
     setAutoTypingText("");
+    
+    // Load cities if not already loaded (when user starts typing)
+    if (allCities.length === 0 && !loadingCities) {
+      loadAllCities();
+    }
   };
   
   const handleFieldClick = () => {
     setHasUserInteracted(true);
     setIsTyping(false);
     setAutoTypingText("");
+    
+    // Load cities if not already loaded (when user clicks field)
+    if (allCities.length === 0 && !loadingCities) {
+      loadAllCities();
+    }
+    
     onOpenChange(!isOpen);
   };
 
-  // Filter cities based on search term
-  const filteredCities = allCities.filter(cityName => 
-    cityName.toLowerCase().includes(citySearchTerm.toLowerCase())
-  ).sort((a, b) => {
-    // Prioritize exact matches and matches that start with the search term
-    const aName = a.toLowerCase();
-    const bName = b.toLowerCase();
-    const searchTerm = citySearchTerm.toLowerCase();
+  // Filter cities based on search term - updates immediately on every keystroke
+  const filteredCities = useMemo(() => {
+    // Don't filter if cities aren't loaded yet
+    if (allCities.length === 0) {
+      console.log('⚠️ No cities loaded yet');
+      return [];
+    }
     
-    if (aName.startsWith(searchTerm) && !bName.startsWith(searchTerm)) return -1;
-    if (!aName.startsWith(searchTerm) && bName.startsWith(searchTerm)) return 1;
-    if (aName.includes(searchTerm) && !bName.includes(searchTerm)) return -1;
-    if (!aName.includes(searchTerm) && bName.includes(searchTerm)) return 1;
-    return aName.localeCompare(bName);
-  }).slice(0, 50); // Limit to 50 cities for performance
+    // If no search term, show no results (user needs to type)
+    if (!citySearchTerm || !citySearchTerm.trim()) {
+      console.log('⚠️ No search term');
+      return [];
+    }
+    
+    const searchTermLower = citySearchTerm.toLowerCase().trim();
+    console.log('🔍 Filtering cities:', { 
+      searchTerm: searchTermLower, 
+      totalCities: allCities.length,
+      allCitiesSample: allCities.slice(0, 10)
+    });
+    
+    const filtered = allCities.filter(cityName => {
+      if (!cityName) return false;
+      const cityNameLower = cityName.toLowerCase();
+      const matches = cityNameLower.includes(searchTermLower);
+      if (matches && searchTermLower === 'dubai') {
+        console.log('✅ Match found:', cityName, 'for search:', searchTermLower);
+      }
+      return matches;
+    });
+    
+    console.log('📊 Filtered results:', { 
+      searchTerm: searchTermLower,
+      count: filtered.length,
+      results: filtered.slice(0, 10)
+    });
+    
+    // Sort results
+    const sorted = filtered.sort((a, b) => {
+      const aName = a.toLowerCase();
+      const bName = b.toLowerCase();
+      
+      // Exact match first
+      if (aName === searchTermLower && bName !== searchTermLower) return -1;
+      if (aName !== searchTermLower && bName === searchTermLower) return 1;
+      
+      // Then prioritize matches that start with the search term
+      if (aName.startsWith(searchTermLower) && !bName.startsWith(searchTermLower)) return -1;
+      if (!aName.startsWith(searchTermLower) && bName.startsWith(searchTermLower)) return 1;
+      
+      // Then prioritize matches that include the search term
+      if (aName.includes(searchTermLower) && !bName.includes(searchTermLower)) return -1;
+      if (!aName.includes(searchTermLower) && bName.includes(searchTermLower)) return 1;
+      
+      return aName.localeCompare(bName);
+    });
+    
+    return sorted.slice(0, 50); // Limit to 50 cities for performance
+  }, [allCities, citySearchTerm]);
 
   return (
     <div className="relative">
@@ -295,6 +380,229 @@ export const DestinationPicker = ({
   );
 };
 
+// Unified Date Range Picker Component (CuddlyNest style - two months side by side)
+interface UnifiedDateRangePickerProps {
+  triggerRef: React.RefObject<HTMLDivElement>;
+  startDate?: Date;
+  endDate?: Date;
+  onStartDateChange: (date: Date | undefined) => void;
+  onEndDateChange: (date: Date | undefined) => void;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+// Unified Date Range Trigger Component (combines check-in and check-out)
+interface UnifiedDateRangeTriggerProps {
+  startDate?: Date;
+  endDate?: Date;
+  onStartDateChange: (date: Date | undefined) => void;
+  onEndDateChange: (date: Date | undefined) => void;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export const UnifiedDateRangeTrigger = ({
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+  isOpen,
+  onOpenChange,
+}: UnifiedDateRangeTriggerProps) => {
+  const { t } = useTranslation();
+  const triggerRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <>
+      <div className="relative flex-1" ref={triggerRef}>
+        <div
+          className="flex items-center space-x-2 cursor-pointer p-4 hover:bg-muted/50 rounded-lg transition-all duration-200 group"
+          onClick={() => onOpenChange(!isOpen)}
+        >
+          <div className="flex-1 flex flex-col space-y-1 items-start">
+            <Label className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+              {t?.checkIn || "Check in"}
+            </Label>
+            <div
+              className={cn(
+                "text-base font-normal transition-colors",
+                startDate ? "text-foreground font-medium" : "text-muted-foreground"
+              )}
+            >
+              {startDate ? formatDateDDMMYY(startDate) : "Add dates"}
+            </div>
+          </div>
+          <div className="w-px h-8 bg-border"></div>
+          <div className="flex-1 flex flex-col space-y-1 items-start">
+            <Label className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+              {t?.checkOut || "Check out"}
+            </Label>
+            <div
+              className={cn(
+                "text-base font-normal transition-colors",
+                endDate ? "text-foreground font-medium" : "text-muted-foreground"
+              )}
+            >
+              {endDate ? formatDateDDMMYY(endDate) : "Add dates"}
+            </div>
+          </div>
+        </div>
+      </div>
+      <UnifiedDateRangePicker
+        triggerRef={triggerRef}
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={onStartDateChange}
+        onEndDateChange={onEndDateChange}
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+      />
+    </>
+  );
+};
+
+export const UnifiedDateRangePicker = ({
+  triggerRef,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+  isOpen,
+  onOpenChange,
+}: UnifiedDateRangePickerProps) => {
+  const { t } = useTranslation();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>(() => {
+    if (startDate || endDate) {
+      return { from: startDate, to: endDate };
+    }
+    return undefined;
+  });
+
+  // Sync range with props
+  useEffect(() => {
+    setRange({ from: startDate, to: endDate });
+  }, [startDate, endDate]);
+
+  const handleRangeSelect = (selectedRange: { from?: Date; to?: Date } | undefined) => {
+    if (!selectedRange) {
+      setRange(undefined);
+      onStartDateChange(undefined);
+      onEndDateChange(undefined);
+      return;
+    }
+
+    setRange(selectedRange);
+    
+    if (selectedRange.from) {
+      onStartDateChange(selectedRange.from);
+      
+      // Automatically set checkout to next day when checkin is selected
+      if (!selectedRange.to) {
+        const nextDay = new Date(selectedRange.from);
+        nextDay.setDate(nextDay.getDate() + 1);
+        onEndDateChange(nextDay);
+        setRange({ from: selectedRange.from, to: nextDay });
+      } else {
+        onEndDateChange(selectedRange.to);
+      }
+    } else {
+      onStartDateChange(undefined);
+      onEndDateChange(undefined);
+    }
+  };
+
+  // Calculate position for the calendar dropdown
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.left + window.scrollX + rect.width / 2,
+      });
+    }
+  }, [isOpen, triggerRef]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(event.target as Node)
+      ) {
+        onOpenChange(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onOpenChange, triggerRef]);
+
+  return (
+    <>
+      {isOpen && position && (
+        <div
+          ref={dropdownRef}
+          className="fixed bg-background border border-border rounded-xl shadow-2xl z-[100] overflow-hidden"
+          style={{
+            minWidth: '600px',
+            maxWidth: '700px',
+            top: `${position.top}px`,
+            left: `${position.left}px`,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <Calendar
+            mode="range"
+            selected={range}
+            onSelect={handleRangeSelect}
+            numberOfMonths={2}
+            disabled={(date) => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              return date < today;
+            }}
+            className="rounded-lg border-0 pointer-events-auto p-4"
+            classNames={{
+              months: "flex flex-row space-x-6 sm:space-x-8",
+              month: "space-y-4",
+              caption: "flex justify-center pt-1 relative items-center",
+              caption_label: "text-sm font-medium",
+            }}
+          />
+          {range?.from && (
+            <div className="p-3 border-t bg-muted/30 flex justify-between items-center">
+              <button
+                onClick={() => {
+                  setRange(undefined);
+                  onStartDateChange(undefined);
+                  onEndDateChange(undefined);
+                }}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear dates
+              </button>
+              <div className="text-sm text-muted-foreground">
+                {range.from && formatDateDDMMYY(range.from)}
+                {range.to && ` - ${formatDateDDMMYY(range.to)}`}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+};
+
 interface DatePickerProps {
   date?: Date;
   onDateChange: (date: Date | undefined) => void;
@@ -302,6 +610,9 @@ interface DatePickerProps {
   onOpenChange: (open: boolean) => void;
   type: "checkin" | "checkout";
   minDate?: Date;
+  // For auto-setting checkout when checkin is selected
+  otherDate?: Date;
+  onOtherDateChange?: (date: Date | undefined) => void;
 }
 
 export const DatePicker = ({
@@ -311,12 +622,22 @@ export const DatePicker = ({
   onOpenChange,
   type,
   minDate,
+  otherDate,
+  onOtherDateChange,
 }: DatePickerProps) => {
   const { t } = useTranslation();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     onDateChange(selectedDate);
+    
+    // If checkin is selected, automatically set checkout to next day
+    if (type === "checkin" && selectedDate && onOtherDateChange) {
+      const nextDay = new Date(selectedDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      onOtherDateChange(nextDay);
+    }
+    
     onOpenChange(false);
   };
 

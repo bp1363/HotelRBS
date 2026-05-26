@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { checkTelrOrderStatus } from '@/services/telrPaymentApi';
+import { checkPayORCOrderStatus, isPaymentSuccessful } from '@/services/payorcPaymentApi';
 import { completeBooking } from '@/services/bookingService';
 import { addBookingToCustomBackend } from '@/services/bookingsApi';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -94,25 +94,30 @@ const PaymentSuccess = () => {
         return;
       }
       
-      // Regular payment flow - Get Telr order reference from URL parameters
-      const orderRef = searchParams.get('order_ref') || searchParams.get('ref');
+      // Regular payment flow - Get order ID from URL parameters or localStorage
+      // PayORC uses p_order_id parameter
+      const orderId = searchParams.get('p_order_id') || 
+                     searchParams.get('order_id') || 
+                     searchParams.get('order_ref') || 
+                     searchParams.get('ref') ||
+                     localStorage.getItem('payorc_order_id');
       
-      if (!orderRef) {
+      if (!orderId) {
         setError('No order reference found in URL');
         setIsVerifying(false);
         return;
       }
 
       try {
-        console.log('🔍 Step 1: Verifying payment for order:', orderRef);
+        console.log('🔍 Step 1: Verifying PayORC order for p_order_id:', orderId);
         
-        // Step 1: Verify payment status with Telr
-        const statusResponse = await checkTelrOrderStatus(orderRef);
+        // Step 1: Verify payment status with PayORC using transaction-details API
+        const statusResponse = await checkPayORCOrderStatus(orderId);
         
         console.log('✅ Payment verification response:', statusResponse);
         
         // Check if payment was actually successful
-        if (statusResponse.order.status.code === 3) {
+        if (isPaymentSuccessful(statusResponse.status)) {
           console.log('💳 Payment successful! Now confirming booking...');
           
           // Step 2: Get saved guest details and booking data
@@ -164,28 +169,43 @@ const PaymentSuccess = () => {
           if (result.success) {
             console.log('🎉 Booking confirmed successfully!');
             
+            // Log email sending status
+            if (result.confirmationEmailSent) {
+              console.log('✅ Confirmation email sent successfully:', result.confirmationEmailMessage);
+            } else {
+              console.warn('⚠️ Confirmation email not sent:', result.confirmationEmailMessage);
+            }
+            
             const confirmationData = {
               confirmationNumber: result.confirmationNumber || 'N/A',
               bookingId: result.data?.BookingId || 'N/A',
               clientReferenceId: result.data?.ClientReferenceId || 'N/A',
               bookingReferenceId: bookingInfo.bookingReference.booking_reference_id,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              emailSent: result.confirmationEmailSent || false,
+              emailMessage: result.confirmationEmailMessage || ''
             };
             
             // Store payment and booking confirmation
             const fullConfirmation = {
               ...confirmationData,
               payment: {
-                orderRef: statusResponse.order.ref,
-                cartId: statusResponse.order.cartid,
-                amount: statusResponse.order.amount,
-                currency: statusResponse.order.currency,
-                transactionRef: statusResponse.order.transaction?.ref,
+                p_order_id: statusResponse.p_order_id,
+                transaction_id: statusResponse.transaction_id,
+                amount: statusResponse.amount,
+                currency: statusResponse.currency,
                 status: 'Authorised'
               }
             };
             
-            setPaymentDetails(statusResponse.order);
+            setPaymentDetails({
+              p_order_id: statusResponse.p_order_id,
+              transaction_id: statusResponse.transaction_id,
+              amount: statusResponse.amount,
+              currency: statusResponse.currency,
+              status: statusResponse.status,
+              payment_method: statusResponse.payment_method,
+            });
             localStorage.setItem('payment_confirmation', JSON.stringify(fullConfirmation));
             
             // Save to booking history
@@ -230,12 +250,21 @@ const PaymentSuccess = () => {
             localStorage.removeItem('guest_details');
             localStorage.removeItem('pending_booking_data');
             localStorage.removeItem('booking_reference_id');
-            localStorage.removeItem('telr_order_ref');
+            // Remove PayORC order and transaction IDs
+            localStorage.removeItem('payorc_order_id');
+            localStorage.removeItem('payorc_transaction_id');
             
             console.log('🎉 ======= BOOKING & PAYMENT COMPLETE =======');
             console.log('📋 Confirmation Number:', confirmationData.confirmationNumber);
             console.log('🆔 Booking ID:', confirmationData.bookingId);
-            console.log('💳 Transaction Ref:', statusResponse.order.transaction?.ref);
+            console.log('💳 Order ID (p_order_id):', orderId);
+            if (statusResponse.transaction_id) {
+              console.log('🔖 Transaction ID:', statusResponse.transaction_id);
+            }
+            console.log('📧 Email Status:', confirmationData.emailSent ? '✅ Sent' : '❌ Not Sent');
+            if (confirmationData.emailMessage) {
+              console.log('📧 Email Message:', confirmationData.emailMessage);
+            }
             console.log('==========================================');
             
           } else {
@@ -243,7 +272,7 @@ const PaymentSuccess = () => {
           }
           
         } else {
-          setError(`Payment not authorized. Status: ${statusResponse.order.status.text}`);
+          setError(`Payment not authorized. Status: ${statusResponse.status}`);
         }
       } catch (error) {
         console.error('❌ Error in payment verification or booking confirmation:', error);

@@ -131,10 +131,10 @@ const HeroSection = ({ variant = "home", showSearch = true }: HeroSectionProps) 
   };
 
   const popularDestinations = [
-    { name: "Dubai", tag: "Luxury", image: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=400&h=300&fit=crop" },
-    { name: "Maldives", tag: "Beach", image: "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=400&h=300&fit=crop" },
-    { name: "Paris", tag: "Romance", image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&h=300&fit=crop" },
-    { name: "Tokyo", tag: "Culture", image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=300&fit=crop" },
+    { name: "Dubai", tag: "Luxury", image: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&h=300&fit=crop&q=80" },
+    { name: "Maldives", tag: "Beach", image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=300&fit=crop&q=80" },
+    { name: "Paris", tag: "Romance", image: "https://images.unsplash.com/photo-1508050916680-992352b31009?w=400&h=300&fit=crop&q=80" },
+    { name: "Tokyo", tag: "Culture", image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400&h=300&fit=crop&q=80" },
   ];
 
   return (
@@ -284,7 +284,16 @@ const HeroSection = ({ variant = "home", showSearch = true }: HeroSectionProps) 
                         <Input
                           type="date"
                           value={checkIn}
-                          onChange={(e) => setCheckIn(e.target.value)}
+                          onChange={(e) => {
+                            setCheckIn(e.target.value);
+                            // Automatically set checkout to next day when checkin is selected
+                            if (e.target.value) {
+                              const checkInDate = new Date(e.target.value);
+                              const nextDay = new Date(checkInDate);
+                              nextDay.setDate(nextDay.getDate() + 1);
+                              setCheckOut(nextDay.toISOString().split('T')[0]);
+                            }
+                          }}
                           className="pl-11 h-14 text-base border-2 border-gray-200 focus:border-primary rounded-xl transition-all shadow-sm hover:shadow-md"
                         />
                       </div>

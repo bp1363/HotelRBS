@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { XCircle, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { checkTelrOrderStatus } from '@/services/telrPaymentApi';
+import { checkPayORCOrderStatus, isPaymentFailed } from '@/services/payorcPaymentApi';
 import { useTranslation } from '@/contexts/TranslationContext';
 
 const PaymentFailure = () => {
@@ -27,11 +27,19 @@ const PaymentFailure = () => {
       try {
         console.log('🔍 Checking declined payment for order:', orderRef);
         
-        const statusResponse = await checkTelrOrderStatus(orderRef);
+        // Check payment status with PayORC using p_order_id
+        const statusResponse = await checkPayORCOrderStatus(orderRef);
         
         console.log('📋 Payment failure details:', statusResponse);
         
-        setFailureDetails(statusResponse.order);
+        setFailureDetails({
+          p_order_id: statusResponse.p_order_id,
+          transaction_id: statusResponse.transaction_id,
+          status: statusResponse.status,
+          amount: statusResponse.amount,
+          currency: statusResponse.currency,
+          payment_method: statusResponse.payment_method,
+        });
       } catch (error) {
         console.error('❌ Error checking payment status:', error);
       } finally {

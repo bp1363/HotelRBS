@@ -135,7 +135,22 @@ const RoomSelection: React.FC<RoomSelectionProps> = ({ hotel, onRoomSelect, unav
                       {room.MealType || 'Meal type not specified'}
                     </p>
                     <div className="flex flex-wrap gap-2 mb-2">
-                      {/* Refundable badge hidden as per requirements */}
+                      {/* Refundable/Non-Refundable Badge */}
+                      {(() => {
+                        const isRefundable = room.IsRefundable === "true" || 
+                                             room.IsRefundable === "1" || 
+                                             room.IsRefundable === true ||
+                                             (typeof room.IsRefundable === "string" && room.IsRefundable.toLowerCase() === "true");
+                        return isRefundable ? (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 hover:bg-green-100">
+                            ✓ Refundable
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100">
+                            ⚠ Non-Refundable
+                          </Badge>
+                        );
+                      })()}
                       {room.CancellationPolicy && (
                         <Badge variant="outline">Free Cancellation</Badge>
                       )}

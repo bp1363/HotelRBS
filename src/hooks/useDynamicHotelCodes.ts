@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   getCountryList, 
   getCityList, 
-  getHotelCodeList,
+  getHotelCodeListFromPfort ,
   findCountryCodeByName,
   findCityCodeByName,
   Country,
@@ -99,7 +99,7 @@ export const useDynamicHotelCodes = (): UseDynamicHotelCodesReturn => {
     setError(null);
     
     try {
-      const response = await getHotelCodeList(countryCode, cityCode, false);
+      const response = await getHotelCodeListFromPfort (countryCode, cityCode, );
       if (response.HotelList && Array.isArray(response.HotelList)) {
         setHotels(response.HotelList);
         

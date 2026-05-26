@@ -1,9 +1,9 @@
 // API functions for fetching hotel codes dynamically
-const PROXY_SERVER_URL = import.meta.env.VITE_PROXY_SERVER_URL || 'http://localhost:3001/api';
-const DIRECT_API_URL = 'https://api.hotelrbs.com';
+
+const DIRECT_API_URL = "https://api.hotelrbs.com";
 
 const getApiUrl = (endpoint: string) => {
-  return `${PROXY_SERVER_URL}${endpoint}`;
+  return `/api${endpoint}`;
 };
 
 const getDirectApiUrl = (endpoint: string) => {
@@ -68,10 +68,10 @@ export interface HotelCodeListResponse {
 // API functions
 export const getCountryList = async (): Promise<CountryListResponse> => {
   try {
-    const response = await fetch(getApiUrl('/CountryList'), {
-      method: 'GET',
+    const response = await fetch(getApiUrl("/CountryList"), {
+      method: "GET",
       headers: {
-        'Accept': 'application/json',
+        Accept: "application/json",
       },
     });
 
@@ -80,21 +80,23 @@ export const getCountryList = async (): Promise<CountryListResponse> => {
     }
 
     const data = await response.json();
-    console.log('🌍 Country list response:', data);
+    console.log("🌍 Country list response:", data);
     return data;
   } catch (error) {
-    console.error('❌ Error fetching country list:', error);
+    console.error("❌ Error fetching country list:", error);
     throw error;
   }
 };
 
-export const getCityList = async (countryCode: string): Promise<CityListResponse> => {
+export const getCityList = async (
+  countryCode: string
+): Promise<CityListResponse> => {
   try {
-    const response = await fetch(getApiUrl('/CityList'), {
-      method: 'POST',
+    const response = await fetch(getApiUrl("/CityList"), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({ CountryCode: countryCode }),
     });
@@ -104,99 +106,35 @@ export const getCityList = async (countryCode: string): Promise<CityListResponse
     }
 
     const data = await response.json();
-    console.log('🏙️ City list response:', data);
+    console.log("🏙️ City list response:", data);
     return data;
   } catch (error) {
-    console.error('❌ Error fetching city list:', error);
-    throw error;
-  }
-};
-
-/**
- * Get hotel codes from custom API
- * POST https://api.hotelrbs.com/hotel/getHotelCodes
- * Body: { "CountryCode": "AE", "CityCode": "AUH" }
- * Response: { "success": true, "country": "AE", "city": "AUH", "hotels": [...] }
- */
-export const getHotelCodeList = async (
-  countryCode: string, 
-  cityCode: string, 
-  isDetailedResponse: boolean = false
-): Promise<HotelCodeListResponse> => {
-  try {
-    console.log('🏨 Fetching hotel codes from custom API...', { countryCode, cityCode });
-    
-    // Call custom API directly (not through proxy)
-    const response = await fetch(getDirectApiUrl('/hotel/getHotelCodes'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ 
-        CountryCode: countryCode,
-        CityCode: cityCode
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('✅ Custom API hotel codes response:', data);
-    
-    // Transform custom API response to expected format
-    if (data.success && data.hotels && Array.isArray(data.hotels)) {
-      const hotelList: Hotel[] = data.hotels.map((hotel: any) => ({
-        HotelCode: hotel.hotel_code || hotel.HotelCode || '',
-        HotelName: hotel.hotel_name || hotel.HotelName || '',
-        CityCode: hotel.city_code || hotel.CityCode || cityCode,
-        CountryCode: hotel.country_code || hotel.CountryCode || countryCode,
-      }));
-      
-      const transformedResponse: HotelCodeListResponse = {
-        Status: {
-          Code: '200',
-          Message: 'Successful'
-        },
-        HotelList: hotelList
-      };
-      
-      console.log(`✅ Transformed ${hotelList.length} hotels from custom API`);
-      return transformedResponse;
-    } else {
-      // Return empty response if no hotels found
-      console.log('⚠️ No hotels found in custom API response');
-      return {
-        Status: {
-          Code: '204',
-          Message: 'No hotels found'
-        },
-        HotelList: []
-      };
-    }
-  } catch (error) {
-    console.error('❌ Error fetching hotel code list from custom API:', error);
+    console.error("❌ Error fetching city list:", error);
     throw error;
   }
 };
 
 // Helper functions
 export const getHotelCodesString = (hotels: Hotel[]): string => {
-  return hotels.map(hotel => hotel.HotelCode).join(',');
+  return hotels.map((hotel) => hotel.HotelCode).join(",");
 };
 
-export const findCountryCodeByName = (countries: Country[], countryName: string): string | null => {
-  const country = countries.find(c => 
-    c.CountryName.toLowerCase() === countryName.toLowerCase()
+export const findCountryCodeByName = (
+  countries: Country[],
+  countryName: string
+): string | null => {
+  const country = countries.find(
+    c => c.Name.toLowerCase() === countryName.toLowerCase()
   );
-  return country ? country.CountryCode : null;
+  return country ? country.Code : null;
 };
 
-export const findCityCodeByName = (cities: City[], cityName: string): string | null => {
-  const city = cities.find(c => 
-    c.CityName.toLowerCase() === cityName.toLowerCase()
+export const findCityCodeByName = (
+  cities: City[],
+  cityName: string
+): string | null => {
+  const city = cities.find(
+    (c) => c.CityName.toLowerCase() === cityName.toLowerCase()
   );
   return city ? city.CityCode : null;
 };
@@ -211,11 +149,11 @@ export const findCityCodeByName = (cities: City[], cityName: string): string | n
  */
 export const getAllCities = async (): Promise<string[]> => {
   try {
-    console.log('🌍 Fetching all cities from custom API...');
-    const response = await fetch(getDirectApiUrl('/city/all'), {
-      method: 'GET',
+    console.log("🌍 Fetching all cities from custom API...");
+    const response = await fetch(getDirectApiUrl("/city/all"), {
+      method: "GET",
       headers: {
-        'Accept': 'application/json',
+        Accept: "application/json",
       },
     });
 
@@ -224,13 +162,13 @@ export const getAllCities = async (): Promise<string[]> => {
     }
 
     const data = await response.json();
-    console.log('✅ All cities response:', data);
-    
+    console.log("✅ All cities response:", data);
+
     // Extract city names from the response array
     const cityNames = data.map((city: AllCitiesResponse) => city.city_name);
     return cityNames;
   } catch (error) {
-    console.error('❌ Error fetching all cities:', error);
+    console.error("❌ Error fetching all cities:", error);
     throw error;
   }
 };
@@ -240,14 +178,16 @@ export const getAllCities = async (): Promise<string[]> => {
  * POST https://api.hotelrbs.com/city/search
  * Body: { "name": "abu dhabi" }
  */
-export const searchCityByName = async (cityName: string): Promise<CitySearchResult> => {
+export const searchCityByName = async (
+  cityName: string
+): Promise<CitySearchResult> => {
   try {
-    console.log('🔍 Searching for city:', cityName);
-    const response = await fetch(getDirectApiUrl('/city/search'), {
-      method: 'POST',
+    console.log("🔍 Searching for city:", cityName);
+    const response = await fetch(getDirectApiUrl("/city/search"), {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({ name: cityName }),
     });
@@ -257,8 +197,8 @@ export const searchCityByName = async (cityName: string): Promise<CitySearchResu
     }
 
     const data = await response.json();
-    console.log('✅ City search response:', data);
-    
+    console.log("✅ City search response:", data);
+
     return {
       city_code: data.city_code,
       city_name: data.city_name,
@@ -266,7 +206,181 @@ export const searchCityByName = async (cityName: string): Promise<CitySearchResu
       country_name: data.country_name,
     };
   } catch (error) {
-    console.error('❌ Error searching city:', error);
+    console.error("❌ Error searching city:", error);
     throw error;
+  }
+};
+
+export const getHotelCodeListFromPfort = async (
+  countryCode: string,
+  cityCode: string
+): Promise<HotelCodeListResponse> => {
+  try {
+    console.log("🏨 Fetching hotel codes from PFORT");
+    console.log("📤 Payload:", {
+      CountryCode: countryCode,
+      CityCode: cityCode,
+    });
+
+    const response = await fetch("/api/hotelcodelist", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        CountryCode: countryCode,
+        CityCode: cityCode,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`PFORT HTTP error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ PFORT response:", data);
+
+    return {
+      Status: {
+        Code: "200",
+        Message: "Success",
+      },
+      HotelList: data.HotelList || [],
+    };
+  } catch (error) {
+    console.error("❌ PFORT failed:", error);
+    return {
+      Status: { Code: "500", Message: "PFORT request failed" },
+      HotelList: [],
+    };
+  }
+};
+
+// DB HOTEL TYPES
+export interface DBHotel {
+  HotelID: string;
+  HotelName: string;
+  CityCode: string;
+  CityName: string;
+  CountryCode: string;
+  CountryName: string;
+  Address: string;
+  PhoneNo: string;
+  Latitude: string;
+  Longitude: string;
+  Rating: string;
+  InsertedOn?: string;
+}
+
+const getDbApiUrl = (endpoint: string) => {
+  return `/api/db${endpoint}`;
+};
+
+// Get all hotels from DB
+export const getDbHotels = async (): Promise<DBHotel[]> => {
+  try {
+    const response = await fetch(getDbApiUrl("/hotels"), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`DB hotels fetch failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("🏨 DB hotels:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error fetching DB hotels:", error);
+    throw error;
+  }
+};
+
+// Get DB hotels by city code
+export const getDbHotelsByCity = async (
+  cityCode: string
+): Promise<DBHotel[]> => {
+  try {
+    const response = await fetch(getDbApiUrl(`/hotels?cityCode=${cityCode}`), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`DB hotels by city failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(`🏙️ DB hotels for ${cityCode}:`, data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error fetching DB hotels by city:", error);
+    throw error;
+  }
+};
+
+// Get DB hotel by ID
+export const getDbHotelById = async (hotelId: string): Promise<DBHotel> => {
+  try {
+    const response = await fetch(getDbApiUrl(`/hotels/${hotelId}`), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Hotel not found");
+    }
+
+    const data = await response.json();
+    console.log("🏨 DB hotel details:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error fetching DB hotel by ID:", error);
+    throw error;
+  }
+};
+
+// ============================================
+// SMART HOTEL SOURCE (DB → PFORT fallback)
+// ============================================
+
+export const getHotelCodeList = async (
+  countryCode: string,
+  cityCode: string
+): Promise<HotelCodeListResponse> => {
+  try {
+    console.log("🧠 Trying DB hotels first...");
+
+    const dbHotels = await getDbHotelsByCity(cityCode);
+
+    if (dbHotels.length > 0) {
+      console.log("✅ Using DB hotels");
+
+      return {
+        Status: {
+          Code: "200",
+          Message: "DB Hotels",
+        },
+        HotelList: dbHotels.map((hotel) => ({
+          HotelCode: hotel.HotelID,
+          HotelName: hotel.HotelName,
+          CityCode: hotel.CityCode,
+          CountryCode: hotel.CountryCode,
+        })),
+      };
+    }
+
+    console.log("⚠️ No DB hotels found → PFORT fallback");
+    return await getHotelCodeListFromPfort(countryCode, cityCode);
+  } catch (error) {
+    console.error("❌ DB failed → PFORT fallback", error);
+    return await getHotelCodeListFromPfort(countryCode, cityCode);
   }
 };

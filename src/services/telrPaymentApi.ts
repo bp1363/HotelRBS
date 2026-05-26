@@ -1,10 +1,13 @@
 /**
  * Telr Payment Gateway Integration Service
  * 
- * This service handles all interactions with the Telr payment gateway.
- * All API calls are proxied through the backend to avoid CORS issues.
+ * ⚠️ DEPRECATED: This service has been removed.
+ * Telr payment gateway is no longer used.
  * 
- * Flow:
+ * This file is kept for reference but should not be imported.
+ * Please implement your new payment gateway integration.
+ * 
+ * Previous Flow:
  * 1. Create order → Get payment URL
  * 2. Redirect customer to Telr payment page
  * 3. Customer completes payment

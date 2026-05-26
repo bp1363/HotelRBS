@@ -121,6 +121,7 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
   const [isLoadingCities, setIsLoadingCities] = useState(false);
   const destinationRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const citySearchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   
   // Auto-typing animation state
   const [autoTypingText, setAutoTypingText] = useState("");
@@ -328,46 +329,89 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
     setIsOpen(false);
   };
 
-  // Load all cities from custom API (same as web view)
-  const loadAllCities = async () => {
-    if (allCities.length > 0) return; // Already loaded
-    
-    setIsLoadingCities(true);
-    try {
-      console.log('🏙️ Loading all cities from custom API...');
-      const cityNames = await getAllCities();
-      setAllCities(cityNames);
-      setFilteredCities(cityNames);
-      console.log('✅ Cities loaded:', cityNames.length);
-    } catch (error) {
-      console.error('❌ Error loading cities:', error);
-    } finally {
-      setIsLoadingCities(false);
-    }
-  };
-  
-  // Filter cities based on search input (same as web view)
+  // Debounce search input for performance (mobile optimization)
+  const [debouncedSearchInput, setDebouncedSearchInput] = useState('');
+
+  // Debounce search input (only search after user stops typing for 300ms)
   useEffect(() => {
-    if (searchInput.trim() === '') {
-      setFilteredCities(allCities);
-    } else {
-      const filtered = allCities.filter(cityName =>
-        cityName.toLowerCase().includes(searchInput.toLowerCase())
-      ).sort((a, b) => {
-        // Prioritize exact matches and matches that start with the search term
-        const aName = a.toLowerCase();
-        const bName = b.toLowerCase();
-        const searchTerm = searchInput.toLowerCase();
-        
-        if (aName.startsWith(searchTerm) && !bName.startsWith(searchTerm)) return -1;
-        if (!aName.startsWith(searchTerm) && bName.startsWith(searchTerm)) return 1;
-        if (aName.includes(searchTerm) && !bName.includes(searchTerm)) return -1;
-        if (!aName.includes(searchTerm) && bName.includes(searchTerm)) return 1;
-        return aName.localeCompare(bName);
-      }).slice(0, 50); // Limit to 50 cities for performance
-      setFilteredCities(filtered);
+    if (citySearchDebounceRef.current) {
+      clearTimeout(citySearchDebounceRef.current);
     }
-  }, [searchInput, allCities]);
+    
+    citySearchDebounceRef.current = setTimeout(() => {
+      setDebouncedSearchInput(searchInput);
+    }, 300);
+    
+    return () => {
+      if (citySearchDebounceRef.current) {
+        clearTimeout(citySearchDebounceRef.current);
+      }
+    };
+  }, [searchInput]);
+
+  // Search cities only when user types (lazy loading approach for mobile performance)
+  useEffect(() => {
+    const searchCities = async () => {
+      // Only search if user has typed at least 2 characters (mobile optimization)
+      if (debouncedSearchInput.trim().length < 2) {
+        setFilteredCities([]);
+        setIsLoadingCities(false);
+        return;
+      }
+      
+      setIsLoadingCities(true);
+      try {
+        console.log('🔍 Searching cities for:', debouncedSearchInput);
+        
+        // If we already have cities loaded, filter them client-side (fast)
+        if (allCities.length > 0) {
+          const filtered = allCities.filter(cityName =>
+            cityName.toLowerCase().includes(debouncedSearchInput.toLowerCase())
+          ).sort((a, b) => {
+            const aName = a.toLowerCase();
+            const bName = b.toLowerCase();
+            const searchTerm = debouncedSearchInput.toLowerCase();
+            
+            if (aName.startsWith(searchTerm) && !bName.startsWith(searchTerm)) return -1;
+            if (!aName.startsWith(searchTerm) && bName.startsWith(searchTerm)) return 1;
+            if (aName.includes(searchTerm) && !bName.includes(searchTerm)) return -1;
+            if (!aName.includes(searchTerm) && bName.includes(searchTerm)) return 1;
+            return aName.localeCompare(bName);
+          }).slice(0, 50);
+          setFilteredCities(filtered);
+          setIsLoadingCities(false);
+        } else {
+          // For mobile: Only load all cities if user has typed 2+ characters
+          // This reduces initial load time significantly
+          console.log('🏙️ Loading cities for search (mobile optimized - lazy loading)...');
+          const cityNames = await getAllCities();
+          setAllCities(cityNames);
+          
+          const filtered = cityNames.filter(cityName =>
+            cityName.toLowerCase().includes(debouncedSearchInput.toLowerCase())
+          ).sort((a, b) => {
+            const aName = a.toLowerCase();
+            const bName = b.toLowerCase();
+            const searchTerm = debouncedSearchInput.toLowerCase();
+            
+            if (aName.startsWith(searchTerm) && !bName.startsWith(searchTerm)) return -1;
+            if (!aName.startsWith(searchTerm) && bName.startsWith(searchTerm)) return 1;
+            if (aName.includes(searchTerm) && !bName.includes(searchTerm)) return -1;
+            if (!aName.includes(searchTerm) && bName.includes(searchTerm)) return 1;
+            return aName.localeCompare(bName);
+          }).slice(0, 50);
+          setFilteredCities(filtered);
+          setIsLoadingCities(false);
+        }
+      } catch (error) {
+        console.error('❌ Error searching cities:', error);
+        setFilteredCities([]);
+        setIsLoadingCities(false);
+      }
+    };
+    
+    searchCities();
+  }, [debouncedSearchInput, allCities]);
   
   // Click outside handler
   useEffect(() => {
@@ -411,35 +455,33 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
     }
   };
   
-  // Handle input focus - load cities when opened
+  // Handle input focus - don't load cities until user starts typing (mobile optimization)
   const handleDestinationFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     setShowResults(true);
-    if (allCities.length === 0) {
-      loadAllCities();
-    }
+    // Don't load all cities on focus - wait for user to type (better for mobile performance)
     setHasUserInteracted(true);
     setIsTyping(false);
     setAutoTypingText("");
     
-    // Scroll input into view when focused (especially on mobile)
+    // Scroll input into view when focused (especially on mobile) - ensure content above is visible
     setTimeout(() => {
       const inputElement = e.target;
-      if (inputElement && scrollContainerRef.current) {
-        // Get the input's position relative to the scroll container
+      if (inputElement && scrollContainerRef.current && destinationRef.current) {
+        // Get the destination container's position (includes the label above input)
         const containerRect = scrollContainerRef.current.getBoundingClientRect();
-        const inputRect = inputElement.getBoundingClientRect();
+        const destinationRect = destinationRef.current.getBoundingClientRect();
         
-        // Calculate the scroll position needed to show the input at the top
+        // Calculate the scroll position needed to show the destination section fully
         const scrollTop = scrollContainerRef.current.scrollTop;
-        const relativeTop = inputRect.top - containerRect.top + scrollTop;
+        const relativeTop = destinationRect.top - containerRect.top + scrollTop;
         
-        // Scroll to show the input near the top (with some padding)
+        // Scroll to show the destination section with padding at the top (so label is visible)
         scrollContainerRef.current.scrollTo({
-          top: Math.max(0, relativeTop - 20),
+          top: Math.max(0, relativeTop - 16), // 16px padding to show label above
           behavior: 'smooth'
         });
       }
-    }, 100);
+    }, 150);
   };
 
   // Auto-typing effect - only when no value and user hasn't interacted
@@ -505,6 +547,27 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchData.destination, searchInput, hasUserInteracted, isOpen, currentDestinationIndex]);
 
+  // Reset scroll position when sheet opens to ensure content is visible from top
+  useEffect(() => {
+    if (isOpen) {
+      // Reset scroll to top when sheet opens (after animation completes)
+      const timer = setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = 0;
+        }
+      }, 100); // Small delay to ensure sheet is fully rendered
+      return () => clearTimeout(timer);
+    } else {
+      // Reset scroll position after sheet closes too
+      const timer = setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = 0;
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   // Reset interaction state when sheet closes (if no destination selected)
   useEffect(() => {
     if (!isOpen && !searchData.destination && !searchInput) {
@@ -515,19 +578,6 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
       return () => clearTimeout(resetTimer);
     }
   }, [isOpen, searchData.destination, searchInput]);
-
-  // Reset scroll position when sheet opens and ensure header is visible
-  useEffect(() => {
-    if (isOpen) {
-      // Reset scroll position after sheet animation completes
-      const timer = setTimeout(() => {
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTop = 0;
-        }
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
 
   const hasDestination = Boolean(searchData.destination);
   const showInputSearchIcon = searchInput.trim().length === 0;
@@ -582,21 +632,20 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
 
         <SheetContent 
           side="bottom" 
-          className="h-[90vh] bg-white rounded-t-2xl border-0 shadow-2xl flex flex-col p-0 gap-0 [&>button]:hidden"
-          onInteractOutside={(e) => e.preventDefault()}
+          className="h-[calc(100vh-100px)] bg-white rounded-t-2xl border-0 shadow-2xl flex flex-col p-0 gap-0 z-[9998] [&>button]:hidden"
         >
           {/* Header - Always Visible at Top, Outside Scroll Container */}
-          <SheetHeader className="p-4 border-b border-gray-100 flex-shrink-0 bg-white m-0 z-20 relative">
+          <SheetHeader className="py-2 px-4 border-b border-gray-100 flex-shrink-0 bg-white m-0 z-20 relative">
             <div className="flex items-center justify-between w-full">
-              <SheetTitle className="text-lg font-semibold text-gray-900 flex-1 text-center m-0">Search Hotels</SheetTitle>
+              <SheetTitle className="text-base font-semibold text-gray-900 flex-1 text-center m-0">Search Hotels</SheetTitle>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsOpen(false)}
-                className="h-8 w-8 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0"
+                className="h-7 w-7 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0"
                 aria-label="Close search"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </Button>
             </div>
           </SheetHeader>
@@ -611,7 +660,7 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
               scrollBehavior: 'smooth'
             }}
           >
-            <div className="p-4 space-y-6">
+            <div className="p-4 pt-4 space-y-6">
               {/* Destination - Single-step City Search (same as web view) */}
               <div className="space-y-2" ref={destinationRef}>
                 <Label className="text-sm font-medium text-gray-700 flex items-center">
@@ -622,7 +671,7 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
                 <div className="relative z-10">
                   <div className="relative z-20">
                     {showInputSearchIcon && (
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 z-30" />
+                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 z-30" />
                     )}
                     <div className="relative w-full z-20">
                       <Input
@@ -636,14 +685,14 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
                           setAutoTypingText("");
                         }}
                         onFocus={handleDestinationFocus}
-                        placeholder="Search cities..."
+                        placeholder={!searchInput && isTyping && autoTypingText ? "" : "Search cities..."}
                         className={cn(
                           "h-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent relative z-20 bg-white font-normal",
-                          showInputSearchIcon ? "pl-10 pr-4" : "px-4"
+                          showInputSearchIcon ? "pl-12 pr-4" : "px-4"
                         )}
                       />
                       {!searchInput && isTyping && autoTypingText && (
-                        <div className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 flex items-center z-10 ${showInputSearchIcon ? 'left-10' : 'left-4'}`}>
+                        <div className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 flex items-center z-10 ${showInputSearchIcon ? 'left-12' : 'left-4'}`}>
                           {autoTypingText}
                           <span className="inline-block w-0.5 h-4 bg-primary ml-1 animate-pulse" />
                         </div>
@@ -701,7 +750,20 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
                 <Input
                   type="date"
                   value={searchData.checkIn}
-                  onChange={(e) => setSearchData(prev => ({ ...prev, checkIn: e.target.value }))}
+                  onChange={(e) => {
+                    const checkInValue = e.target.value;
+                    setSearchData(prev => {
+                      // Automatically set checkout to next day when checkin is selected
+                      let checkOutValue = prev.checkOut;
+                      if (checkInValue) {
+                        const checkInDate = new Date(checkInValue);
+                        const nextDay = new Date(checkInDate);
+                        nextDay.setDate(nextDay.getDate() + 1);
+                        checkOutValue = nextDay.toISOString().split('T')[0];
+                      }
+                      return { ...prev, checkIn: checkInValue, checkOut: checkOutValue };
+                    });
+                  }}
                   className="h-12 px-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   min={new Date().toISOString().split('T')[0]}
                 />
@@ -848,92 +910,17 @@ const MobileSearchBar: React.FC<MobileSearchBarProps> = ({ className = "" }) => 
                 {/* Add Room Button */}
                 {roomGuests.length < 5 && (
                   <Button
+                    type="button"
                     variant="outline"
                     onClick={addRoom}
-                    className="w-full border-dashed border-2 border-gray-300 hover:border-primary hover:bg-primary/5"
+                    className="w-full border-dashed border-gray-300 text-gray-600 hover:text-gray-900 hover:border-gray-400 transition-colors"
                   >
                     + Add Another Room
                   </Button>
                 )}
-
-                {/* Apply Button */}
-                <div className="flex justify-end pt-2">
-                  <Button
-                    onClick={() => setIsOpen(false)}
-                    className="bg-primary hover:bg-primary/90 text-white px-8 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 font-medium"
-                  >
-                    Apply
-                  </Button>
-                </div>
               </div>
 
-              {/* Nationality Selection */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700 flex items-center">
-                  <Users className="h-4 w-4 mr-2" />
-                  Guest Nationality
-                </Label>
-                <Select 
-                  value={nationality} 
-                  onValueChange={(value) => {
-                    setNationality(value);
-                    localStorage.setItem("selectedNationality", value);
-                    window.dispatchEvent(new CustomEvent("nationalityChanged", { detail: value }));
-                  }}
-                >
-                  <SelectTrigger className="h-12 px-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
-                    <SelectValue>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-lg">{NATIONALITIES.find(n => n.code === nationality)?.flag || "🇦🇪"}</span>
-                        <span className="text-sm text-gray-900 font-medium">
-                          {NATIONALITIES.find(n => n.code === nationality)?.name || "United Arab Emirates"}
-                        </span>
-                      </div>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    <SelectGroup>
-                      <SelectLabel className="px-2 py-2 text-sm font-semibold text-foreground">Guest Nationality</SelectLabel>
-                      {NATIONALITIES.map((nat) => (
-                        <SelectItem key={nat.code} value={nat.code}>
-                          {nat.flag} {nat.name} ({nat.code})
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
               </div>
-
-              {/* Currency Selection */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700 flex items-center">
-                  <span className="h-4 w-4 mr-2 flex items-center justify-center text-xs font-bold">$</span>
-                  Preferred Currency
-                </Label>
-                <Select 
-                  value={currency} 
-                  onValueChange={(value) => {
-                    setCurrency(value);
-                    localStorage.setItem("selectedCurrency", value);
-                  }}
-                >
-                  <SelectTrigger className="h-12 px-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
-                    <SelectValue>
-                      <span className="text-sm text-gray-900 font-medium">
-                        {CURRENCIES.find(c => c.code === currency)?.code || "USD"}
-                      </span>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {CURRENCIES.map((curr) => (
-                      <SelectItem key={curr.code} value={curr.code}>
-                        {curr.code} - {curr.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
           </div>
 
           {/* Search Button - Fixed at Bottom, Outside Scroll Container */}
