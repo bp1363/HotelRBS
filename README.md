@@ -2,6 +2,9 @@
 
 A hotel booking web app built with React, TypeScript and Vite. It lets users search hotels, view details on a map, and complete a booking, using live data from the Travzilla Hotel API.
 
+**Live Demo:** [your-live-demo-link](https://hotel-rbs-five.vercel.app/)
+
+
 ## Features
 
 - Search hotels by destination, dates and guests
@@ -28,7 +31,7 @@ A hotel booking web app built with React, TypeScript and Vite. It lets users sea
 ## Setup
 
 ```bash
-git clone https://github.com/<your-username>/hotel-rbs-showcase-58.git
+git clone https://github.com/bp1363/hotel-rbs-showcase-58.git
 cd hotel-rbs-showcase-58
 npm install
 cp .env.example .env
